@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FarmBot Lab - Treino JS</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <h1>FarmBot Lab</h1>
+        <p>Replica didatica inspirada em The Farmer Was Replaced</p>
+      </header>
+
+      <main class="layout">
+        <section class="panel code-panel">
+          <div class="panel-head">
+            <h2>Código JavaScript</h2>
+            <div class="actions">
+              <button id="runBtn" class="btn btn-primary">Executar</button>
+              <button id="stopBtn" class="btn">Parar</button>
+              <button id="resetBtn" class="btn">Resetar</button>
+            </div>
+          </div>
+          <div id="editor"></div>
+          <p class="hint">API disponivel: moveRight(), moveLeft(), moveUp(), moveDown(), plant(), harvest()</p>
+        </section>
+
+        <section class="panel scene-panel">
+          <div class="panel-head">
+            <h2>Plantação</h2>
+            <label class="zoom-wrap">
+              Zoom
+              <input id="zoomSlider" type="range" min="0.6" max="2.2" value="1.2" step="0.1" />
+            </label>
+          </div>
+          <div id="scene"></div>
+          <pre id="log"></pre>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.43.6/src-min-noconflict/ace.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-interpreter@6.0.1/lib/js-interpreter.min.js"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
