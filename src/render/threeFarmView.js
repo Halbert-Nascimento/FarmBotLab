@@ -20,6 +20,59 @@ const CROP_COLORS = {
   potato: "#9a7a55",
 };
 
+// Perfis de performance para arredondamento (sem dependência externa)
+// MUITO_LEVE: 0.01 radius, 2 segments (~36 vértices/tile, ideal para máquinas pré-2015)
+// BALANCEADO: 0.02 radius, 3 segments (~80 vértices/tile, padrão, ideal para a maioria)
+// QUALIDADE: 0.04 radius, 4 segments (~160 vértices/tile, máquinas modernas)
+
+const TILE_CORNER_RADIUS = 0.02;
+const TILE_CORNER_CURVE_SEGMENTS = 3;
+
+// Funções de helper para alternar perfis
+function setPerformanceProfile(profile) {
+  const profiles = {
+    muito_leve: { radius: 0.01, segments: 2 },
+    balanceado: { radius: 0.02, segments: 3 },
+    qualidade: { radius: 0.04, segments: 4 },
+  };
+  const p = profiles[profile] || profiles.balanceado;
+  // Nota: Para aplicar novo perfil, será necessário recarregar cena chamando reset()
+  return p;
+}
+
+function createRoundedRectShape(width, height, radius) {
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const r = Math.max(0.001, Math.min(radius, halfW - 0.001, halfH - 0.001));
+
+  const shape = new THREE.Shape();
+  shape.moveTo(-halfW + r, -halfH);
+  shape.lineTo(halfW - r, -halfH);
+  shape.quadraticCurveTo(halfW, -halfH, halfW, -halfH + r);
+  shape.lineTo(halfW, halfH - r);
+  shape.quadraticCurveTo(halfW, halfH, halfW - r, halfH);
+  shape.lineTo(-halfW + r, halfH);
+  shape.quadraticCurveTo(-halfW, halfH, -halfW, halfH - r);
+  shape.lineTo(-halfW, -halfH + r);
+  shape.quadraticCurveTo(-halfW, -halfH, -halfW + r, -halfH);
+  return shape;
+}
+
+function createRoundedTileGeometry(size, height, radius, curveSegments) {
+  const shape = createRoundedRectShape(size, size, radius);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: height,
+    steps: 1,
+    bevelEnabled: false,
+    curveSegments,
+  });
+
+  // Converte para eixo Y como altura e centraliza como a BoxGeometry original.
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, -height / 2, 0);
+  return geometry;
+}
+
 function getColor(value, fallback) {
   return value || fallback;
 }
@@ -241,7 +294,12 @@ export function createThreeFarmView({
   const farmGroup = new THREE.Group();
   scene.add(farmGroup);
 
-  const tileGeometry = new THREE.BoxGeometry(tileSize, 0.2, tileSize);
+  const tileGeometry = createRoundedTileGeometry(
+    tileSize,
+    0.2,
+    TILE_CORNER_RADIUS,
+    TILE_CORNER_CURVE_SEGMENTS
+  );
   const tileEdgeMaterial = new THREE.LineBasicMaterial({
     color: "#6f4f2f",
     transparent: true,
