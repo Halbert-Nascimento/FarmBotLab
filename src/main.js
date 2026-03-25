@@ -7,21 +7,22 @@ import { createLogger } from "./ui/logger.js";
 const DEBUG_ALERTS = true;
 const GRID_SIZE = 8;
 
-const DEFAULT_CODE = `for (let i = 0; i < 4; i++) {
+const DEFAULT_CODE = `
   moveRight();
   plant("wheat");
-}
 
-for (let i = 0; i < 4; i++) {
+
+
   moveDown();
   harvest();
-}`;
+`;
 
 const logEl = document.querySelector("#log");
 const runBtn = document.querySelector("#runBtn");
 const stopBtn = document.querySelector("#stopBtn");
 const resetBtn = document.querySelector("#resetBtn");
 const zoomSlider = document.querySelector("#zoomSlider");
+const avatarSelect = document.querySelector("#avatarSelect");
 const sceneRoot = document.querySelector("#scene");
 
 function debugAlert(message) {
@@ -50,6 +51,7 @@ const world = createFarmWorld({
 const view = createThreeFarmView({
   sceneRoot,
   gridSize: GRID_SIZE,
+  avatarType: avatarSelect ? avatarSelect.value : "drone",
   initialZoom: Number(zoomSlider.value),
   onLog: logger.append,
   onDebugError: debugAlert,
@@ -162,6 +164,12 @@ resetBtn.addEventListener("click", resetWorld);
 zoomSlider.addEventListener("input", () => {
   view.setZoom(Number(zoomSlider.value));
 });
+
+if (avatarSelect) {
+  avatarSelect.addEventListener("change", () => {
+    view.setAvatarType(avatarSelect.value);
+  });
+}
 
 window.addEventListener("resize", () => {
   view.resize();
