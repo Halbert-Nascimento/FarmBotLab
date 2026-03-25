@@ -527,6 +527,21 @@ export function createThreeFarmView({
     }
   });
 
+  // Listener de scroll/wheel para zoom
+  const MIN_ZOOM = 0.5; // Zoom mínimo (muito afastado)
+  const MAX_ZOOM = 3.0; // Zoom máximo (muito aproximado)
+  const ZOOM_SENSITIVITY = 0.6; // Sensibilidade do scroll
+
+  sceneRoot.addEventListener("wheel", (e) => {
+    e.preventDefault(); // Impedir scroll da página
+    
+    // deltaY positivo = scroll down = zoom out (diminui zoom)
+    // deltaY negativo = scroll up = zoom in (aumenta zoom)
+    const zoomDelta = -e.deltaY * ZOOM_SENSITIVITY * 0.001;
+    camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.zoom + zoomDelta));
+    camera.updateProjectionMatrix();
+  }, { passive: false }); // passive:false permite preventDefault
+
   return {
     setCrop,
     setSoilType,
