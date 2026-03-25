@@ -5,11 +5,11 @@ function tileKey(x, y) {
 }
 
 const SOIL_COLORS = {
-  loam: "#9f7449",
-  clay: "#8c6647",
-  sandy: "#b89e73",
-  peat: "#5f4a34",
-  silt: "#8a7a5f",
+  loam: "#c79a67",
+  clay: "#b18765",
+  sandy: "#d2b284",
+  peat: "#8a6647",
+  silt: "#ba986f",
 };
 
 const CROP_COLORS = {
@@ -77,16 +77,226 @@ function getColor(value, fallback) {
   return value || fallback;
 }
 
-function createTileMaterial(soilType, cropType) {
-  const soilColor = new THREE.Color(getColor(SOIL_COLORS[soilType], SOIL_COLORS.loam));
+const soilTextureCache = new Map();
+const soilMaterialCache = new Map();
 
-  if (!cropType) {
-    return new THREE.MeshStandardMaterial({ color: soilColor, roughness: 0.92, metalness: 0.02 });
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function hash2d(x, y, seed = 0) {
+  let n = x * 374761393 + y * 668265263 + seed * 1442695040888963;
+  n = (n ^ (n >>> 13)) * 1274126177;
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+}
+
+function valueNoise2d(x, y, seed = 0) {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+
+  const v00 = hash2d(ix, iy, seed);
+  const v10 = hash2d(ix + 1, iy, seed);
+  const v01 = hash2d(ix, iy + 1, seed);
+  const v11 = hash2d(ix + 1, iy + 1, seed);
+
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const ix0 = lerp(v00, v10, sx);
+  const ix1 = lerp(v01, v11, sx);
+  return lerp(ix0, ix1, sy);
+}
+
+function fbm2d(x, y, seed, octaves = 4) {
+  let amplitude = 0.5;
+  let frequency = 1;
+  let total = 0;
+  let sum = 0;
+  for (let i = 0; i < octaves; i += 1) {
+    total += valueNoise2d(x * frequency, y * frequency, seed + i * 17) * amplitude;
+    sum += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  return total / Math.max(sum, 0.0001);
+}
+
+function getSoilProfile(soilType) {
+  const profiles = {
+    loam: { roughness: 0.86, normalScale: 0.48, grain: 5.2, stripeFreq: 0.32, contrast: 0.22 },
+    clay: { roughness: 0.92, normalScale: 0.4, grain: 4.1, stripeFreq: 0.29, contrast: 0.18 },
+    sandy: { roughness: 0.8, normalScale: 0.54, grain: 7.6, stripeFreq: 0.35, contrast: 0.24 },
+    peat: { roughness: 0.94, normalScale: 0.44, grain: 3.6, stripeFreq: 0.27, contrast: 0.19 },
+    silt: { roughness: 0.84, normalScale: 0.46, grain: 6.1, stripeFreq: 0.31, contrast: 0.21 },
+  };
+  return profiles[soilType] || profiles.loam;
+}
+
+function createSoilTextureBundle(soilType, surfaceState) {
+  const cacheKey = `${soilType}:${surfaceState}`;
+  const fromCache = soilTextureCache.get(cacheKey);
+  if (fromCache) return fromCache;
+
+  const size = 256;
+  const profile = getSoilProfile(soilType);
+  const base = new THREE.Color(getColor(SOIL_COLORS[soilType], SOIL_COLORS.loam));
+
+  const albedoCanvas = document.createElement("canvas");
+  const normalCanvas = document.createElement("canvas");
+  const aoCanvas = document.createElement("canvas");
+  albedoCanvas.width = size;
+  albedoCanvas.height = size;
+  normalCanvas.width = size;
+  normalCanvas.height = size;
+  aoCanvas.width = size;
+  aoCanvas.height = size;
+
+  const albedoCtx = albedoCanvas.getContext("2d");
+  const normalCtx = normalCanvas.getContext("2d");
+  const aoCtx = aoCanvas.getContext("2d");
+  const albedoData = albedoCtx.createImageData(size, size);
+  const normalData = normalCtx.createImageData(size, size);
+  const aoData = aoCtx.createImageData(size, size);
+  const heights = new Float32Array(size * size);
+  const seed = soilType.length * 97 + (surfaceState === "tilled" ? 31 : 11);
+
+  const dirAngle = 0.9;
+  const dirX = Math.cos(dirAngle);
+  const dirY = Math.sin(dirAngle);
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const idx = y * size + x;
+      const uvx = (x / size) * profile.grain;
+      const uvy = (y / size) * profile.grain;
+      const coarse = fbm2d(uvx * 0.75, uvy * 0.75, seed, 4);
+      const detail = fbm2d(uvx * 2.8, uvy * 2.8, seed + 113, 3);
+      const micro = fbm2d(uvx * 7.2, uvy * 7.2, seed + 241, 2);
+      let height = coarse * 0.58 + detail * 0.29 + micro * 0.13;
+
+      if (surfaceState === "tilled") {
+        const furrowPos = (x * dirX + y * dirY) * profile.stripeFreq;
+        const furrowWave = 0.5 + 0.5 * Math.sin(furrowPos + detail * 2.8);
+        const furrowMask = Math.pow(1 - Math.abs(furrowWave * 2 - 1), 5.2);
+        height = clamp01(height * 0.8 + (1 - furrowMask) * 0.2);
+      }
+
+      heights[idx] = height;
+    }
   }
 
-  const cropColor = new THREE.Color(getColor(CROP_COLORS[cropType], CROP_COLORS.generic));
-  const mixed = soilColor.clone().lerp(cropColor, 0.55);
-  return new THREE.MeshStandardMaterial({ color: mixed, roughness: 0.86, metalness: 0.03 });
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const idx = y * size + x;
+      const i4 = idx * 4;
+      const h = heights[idx];
+
+      const xL = x > 0 ? x - 1 : x;
+      const xR = x < size - 1 ? x + 1 : x;
+      const yD = y > 0 ? y - 1 : y;
+      const yU = y < size - 1 ? y + 1 : y;
+      const hL = heights[y * size + xL];
+      const hR = heights[y * size + xR];
+      const hD = heights[yD * size + x];
+      const hU = heights[yU * size + x];
+
+      const tone = 0.86 + (h - 0.5) * profile.contrast * 1.9;
+      const broadNoise = valueNoise2d(x * 0.13, y * 0.13, seed + 341) * 0.12 - 0.06;
+      const fineNoise = fbm2d(x * 0.085, y * 0.085, seed + 607, 3) * 0.08 - 0.04;
+      const variance = broadNoise + fineNoise;
+      let furrowDarken = 0;
+      if (surfaceState === "tilled") {
+        const furrowPos = (x * dirX + y * dirY) * profile.stripeFreq;
+        const furrowWave = 0.5 + 0.5 * Math.sin(furrowPos + h * 3.2);
+        const furrowMask = Math.pow(1 - Math.abs(furrowWave * 2 - 1), 6.4);
+        furrowDarken = furrowMask * 0.24;
+      }
+      const albedo = clamp01(tone + variance - furrowDarken);
+      albedoData.data[i4] = Math.round(clamp01(base.r * albedo) * 255);
+      albedoData.data[i4 + 1] = Math.round(clamp01(base.g * albedo) * 255);
+      albedoData.data[i4 + 2] = Math.round(clamp01(base.b * albedo) * 255);
+      albedoData.data[i4 + 3] = 255;
+
+      const dx = (hL - hR) * (profile.normalScale * 2.0);
+      const dy = (hD - hU) * (profile.normalScale * 2.0);
+      const len = Math.sqrt(dx * dx + dy * dy + 1);
+      const nx = dx / len;
+      const ny = dy / len;
+      const nz = 1 / len;
+      normalData.data[i4] = Math.round((nx * 0.5 + 0.5) * 255);
+      normalData.data[i4 + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      normalData.data[i4 + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+      normalData.data[i4 + 3] = 255;
+
+      const slope = Math.abs(hL - hR) + Math.abs(hD - hU);
+      const valley = 1 - h;
+      const aoBase = surfaceState === "tilled" ? 0.84 : 0.88;
+      const aoValue = clamp01(aoBase + h * 0.19 - slope * 0.62 - valley * 0.04);
+      const aoByte = Math.round(aoValue * 255);
+      aoData.data[i4] = aoByte;
+      aoData.data[i4 + 1] = aoByte;
+      aoData.data[i4 + 2] = aoByte;
+      aoData.data[i4 + 3] = 255;
+    }
+  }
+
+  albedoCtx.putImageData(albedoData, 0, 0);
+  normalCtx.putImageData(normalData, 0, 0);
+  aoCtx.putImageData(aoData, 0, 0);
+
+  const albedoTexture = new THREE.CanvasTexture(albedoCanvas);
+  const normalTexture = new THREE.CanvasTexture(normalCanvas);
+  const aoTexture = new THREE.CanvasTexture(aoCanvas);
+  [albedoTexture, normalTexture, aoTexture].forEach((texture) => {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(6.2, 6.2);
+    texture.needsUpdate = true;
+  });
+  albedoTexture.colorSpace = THREE.SRGBColorSpace;
+
+  const bundle = {
+    map: albedoTexture,
+    normalMap: normalTexture,
+    aoMap: aoTexture,
+    profile,
+  };
+  soilTextureCache.set(cacheKey, bundle);
+  return bundle;
+}
+
+function createTileMaterial(soilType, cropType) {
+  const surfaceState = cropType ? "tilled" : "pure";
+  const cacheKey = `${soilType}:${cropType || "none"}:${surfaceState}`;
+  const cachedMaterial = soilMaterialCache.get(cacheKey);
+  if (cachedMaterial) return cachedMaterial;
+
+  const bundle = createSoilTextureBundle(soilType, surfaceState);
+  let tint = new THREE.Color("#ffffff");
+  if (cropType) {
+    const soilColor = new THREE.Color(getColor(SOIL_COLORS[soilType], SOIL_COLORS.loam));
+    const cropColor = new THREE.Color(getColor(CROP_COLORS[cropType], CROP_COLORS.generic));
+    tint = soilColor.clone().lerp(cropColor, 0.1).lerp(new THREE.Color("#ffffff"), 0.35);
+  }
+
+  const material = new THREE.MeshStandardMaterial({
+    color: tint,
+    map: bundle.map,
+    normalMap: bundle.normalMap,
+    aoMap: bundle.aoMap,
+    aoMapIntensity: surfaceState === "tilled" ? 0.32 : 0.24,
+    roughness: surfaceState === "tilled" ? clamp01(bundle.profile.roughness + 0.03) : bundle.profile.roughness,
+    metalness: 0.02,
+    normalScale: new THREE.Vector2(bundle.profile.normalScale, bundle.profile.normalScale),
+  });
+
+  soilMaterialCache.set(cacheKey, material);
+  return material;
 }
 
 function normalizeAvatarProfile(input) {
@@ -311,8 +521,11 @@ export function createThreeFarmView({
     TILE_CORNER_RADIUS,
     TILE_CORNER_CURVE_SEGMENTS
   );
+  if (tileGeometry.attributes.uv && !tileGeometry.attributes.uv2) {
+    tileGeometry.setAttribute("uv2", new THREE.BufferAttribute(tileGeometry.attributes.uv.array.slice(), 2));
+  }
   const tileEdgeMaterial = new THREE.LineBasicMaterial({
-    color: "#6f4f2f",
+    color: "#6f4f2f6e",
     transparent: true,
     opacity: 0.45,
   });
