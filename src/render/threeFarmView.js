@@ -257,12 +257,15 @@ export function createThreeFarmView({
   let avatar = null;
   let lastKnownPosition = { x: 0, y: 0 };
 
-  // Controle de rotação por mouse (35º máximo)
+  // Controle de rotação por mouse (±35º máximo em ambos os eixos)
   let isDragging = false;
   let mouseStartX = 0;
+  let mouseStartY = 0;
   let currentRotationY = 0;
   let targetRotationY = 0;
-  const MAX_ROTATION = (45 * Math.PI) / 180; // 35 graus em radianos
+  let currentRotationX = 0;
+  let targetRotationX = 0;
+  const MAX_ROTATION = (35 * Math.PI) / 180; // 35 graus em radianos
   const ROTATION_SENSITIVITY = 0.2; // Sensibilidade do mouse
 
   let renderer = null;
@@ -461,9 +464,12 @@ export function createThreeFarmView({
       }
     }
 
-    // Aplicar rotação suave com easing
+    // Aplicar rotação suave com easing (horizontal e vertical)
     currentRotationY += (targetRotationY - currentRotationY) * 0.15;
+    currentRotationX += (targetRotationX - currentRotationX) * 0.15;
+    farmGroup.rotation.order = "YXZ"; // Aplicar Y primeiro, depois X para melhor resultado visual
     farmGroup.rotation.y = currentRotationY;
+    farmGroup.rotation.x = currentRotationX;
 
     if (renderer) {
       renderer.render(scene, camera);
@@ -481,28 +487,34 @@ export function createThreeFarmView({
     if (isOnCanvas) {
       isDragging = true;
       mouseStartX = e.clientX;
+      mouseStartY = e.clientY;
     }
   });
 
   document.addEventListener("mousemove", (e) => {
     if (isDragging) {
       const deltaX = e.clientX - mouseStartX;
-      // Converter movimento do mouse em rotação (35º máximo)
-      let newRotation = (deltaX * ROTATION_SENSITIVITY * Math.PI) / 180;
+      const deltaY = e.clientY - mouseStartY;
+      // Converter movimento do mouse em rotação (35º máximo em ambos eixos)
+      let newRotationY = (deltaX * ROTATION_SENSITIVITY * Math.PI) / 180;
+      let newRotationX = (deltaY * ROTATION_SENSITIVITY * Math.PI) / 180;
       // Limitar rotação a ±35 graus
-      targetRotationY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, newRotation));
+      targetRotationY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, newRotationY));
+      targetRotationX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, newRotationX));
     }
   });
 
   document.addEventListener("mouseup", () => {
     isDragging = false;
-    // Voltar para zero suavemente
+    // Voltar para zero suavemente (ambos os eixos)
     targetRotationY = 0;
+    targetRotationX = 0;
   });
 
   document.addEventListener("mouseleave", () => {
     isDragging = false;
     targetRotationY = 0;
+    targetRotationX = 0;
   });
 
   return {
