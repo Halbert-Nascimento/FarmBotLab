@@ -242,10 +242,17 @@ export function createThreeFarmView({
   scene.add(farmGroup);
 
   const tileGeometry = new THREE.BoxGeometry(tileSize, 0.2, tileSize);
+  const tileEdgeMaterial = new THREE.LineBasicMaterial({
+    color: "#6f4f2f",
+    transparent: true,
+    opacity: 0.45,
+  });
 
   for (let y = 0; y < gridSize; y += 1) {
     for (let x = 0; x < gridSize; x += 1) {
       const tile = new THREE.Mesh(tileGeometry, createTileMaterial("loam", null));
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(tileGeometry), tileEdgeMaterial);
+      tile.add(edges);
       const wp = gridToWorld(x, y, gridSize);
       tile.position.set(wp.x, -0.1, wp.z);
       tile.receiveShadow = true;
