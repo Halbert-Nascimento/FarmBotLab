@@ -257,6 +257,14 @@ export function createThreeFarmView({
   let avatar = null;
   let lastKnownPosition = { x: 0, y: 0 };
 
+  // Controle de rotação por mouse (35º máximo)
+  let isDragging = false;
+  let mouseStartX = 0;
+  let currentRotationY = 0;
+  let targetRotationY = 0;
+  const MAX_ROTATION = (45 * Math.PI) / 180; // 35 graus em radianos
+  const ROTATION_SENSITIVITY = 0.2; // Sensibilidade do mouse
+
   let renderer = null;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -337,7 +345,7 @@ export function createThreeFarmView({
     }
 
     avatar = createAvatarVisual(type, onLog);
-    scene.add(avatar.group);
+    farmGroup.add(avatar.group);
     syncBotPosition(lastKnownPosition);
   }
 
@@ -453,6 +461,10 @@ export function createThreeFarmView({
       }
     }
 
+    // Aplicar rotação suave com easing
+    currentRotationY += (targetRotationY - currentRotationY) * 0.15;
+    farmGroup.rotation.y = currentRotationY;
+
     if (renderer) {
       renderer.render(scene, camera);
     }
@@ -461,6 +473,37 @@ export function createThreeFarmView({
   }
 
   requestAnimationFrame(render);
+
+  // Event listeners para rotação com mouse
+  sceneRoot.addEventListener("mousedown", (e) => {
+    // Verificar se clique está fora de elementos UI (editor/logger)
+    const isOnCanvas = e.target === renderer.domElement;
+    if (isOnCanvas) {
+      isDragging = true;
+      mouseStartX = e.clientX;
+    }
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (isDragging) {
+      const deltaX = e.clientX - mouseStartX;
+      // Converter movimento do mouse em rotação (35º máximo)
+      let newRotation = (deltaX * ROTATION_SENSITIVITY * Math.PI) / 180;
+      // Limitar rotação a ±35 graus
+      targetRotationY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, newRotation));
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+    // Voltar para zero suavemente
+    targetRotationY = 0;
+  });
+
+  document.addEventListener("mouseleave", () => {
+    isDragging = false;
+    targetRotationY = 0;
+  });
 
   return {
     setCrop,
