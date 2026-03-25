@@ -506,15 +506,25 @@ export function createThreeFarmView({
 
   document.addEventListener("mouseup", () => {
     isDragging = false;
-    // Voltar para zero suavemente (ambos os eixos)
-    targetRotationY = 0;
-    targetRotationX = 0;
+    // Manter a rotação na posição atual (não volta para zero)
   });
 
   document.addEventListener("mouseleave", () => {
     isDragging = false;
+    // Manter a rotação na posição atual (não volta para zero)
+  });
+
+  // Função para resetar rotação com suavidade
+  function resetRotation() {
     targetRotationY = 0;
     targetRotationX = 0;
+  }
+
+  // Listener de teclado para resetar com 'R'
+  document.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "r") {
+      resetRotation();
+    }
   });
 
   return {
@@ -526,6 +536,7 @@ export function createThreeFarmView({
     setZoom,
     resize,
     reset,
+    resetRotation,
   };
 }
 
