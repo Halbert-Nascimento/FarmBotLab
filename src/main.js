@@ -17,9 +17,9 @@ const CROP_GROWTH_SETTINGS = {
 
 const DEFAULT_CODE = `
   moveRight();
-  plant("capim");
+  plant("arvore");
   moveDown();
-  plant("capim");
+  plant("arvore");
   moveDown();
   plant("capim");
   moveRight();

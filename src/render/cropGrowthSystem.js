@@ -30,6 +30,18 @@ const CROP_CONFIGS = {
     waveFrequency: 0.8,         // Frequência do movimento
     density: 1.2,               // Densidade de folhas (multiplicador)
   },
+  arvore: {
+    // Arvore - objeto 3D com tronco e copa
+    type: "arvore",
+    displayName: "Arvore",
+    color: { young: "#7fbf5b", mature: "#4f8b3d", harvestReady: "#2e6b2a" },
+    trunkColor: { young: "#8d6e63", mature: "#6d4c41", harvestReady: "#5d4037" },
+    baseHeight: 1.25,
+    growthDays: 22,
+    waveAmplitude: 0.05,
+    waveFrequency: 0.35,
+    density: 1.0,
+  },
   trigo: {
     // Trigo - planta de crescimento mais lento (futuro)
     type: "trigo",
@@ -191,6 +203,10 @@ function getHeightFactorFromGrowthProgress(growthProgress) {
 function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
   const config = CROP_CONFIGS[cropType] || CROP_CONFIGS.capim;
 
+  if (cropType === "arvore") {
+    return createTreeModel(cropType, growthProgress, posX, posZ, seed);
+  }
+
   // Altura mínima inicial garante broto visível imediatamente ao plantar.
   const currentHeight = config.baseHeight * getHeightFactorFromGrowthProgress(growthProgress);
   
@@ -262,6 +278,75 @@ function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
 }
 
 /**
+ * Cria modelo 3D de arvore (tronco + copa) com crescimento progressivo.
+ */
+function createTreeModel(cropType, growthProgress, posX, posZ, seed = 0) {
+  const config = CROP_CONFIGS[cropType] || CROP_CONFIGS.arvore;
+  const heightFactor = getHeightFactorFromGrowthProgress(growthProgress);
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
+  const totalHeight = config.baseHeight * heightFactor;
+  const trunkHeight = Math.max(0.12, totalHeight * 0.62);
+
+  const leafColor = interpolateGrowthColor(
+    growthProgress,
+    config.color.young,
+    config.color.mature,
+    config.color.harvestReady
+  );
+  const trunkColor = interpolateGrowthColor(
+    growthProgress,
+    config.trunkColor.young,
+    config.trunkColor.mature,
+    config.trunkColor.harvestReady
+  );
+
+  const treeGroup = new THREE.Group();
+  treeGroup.position.set(posX, 0, posZ);
+
+  // Tronco
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.07, 2, 12),
+    new THREE.MeshStandardMaterial({ color: trunkColor, roughness: 0.9, metalness: 0.0 })
+  );
+  trunk.position.y = 0;
+  trunk.scale.y = trunkHeight;
+  trunk.castShadow = true;
+  trunk.userData = { modelPart: "tree-trunk" };
+  treeGroup.add(trunk);
+
+  // Copa principal
+  const crown = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 16, 14),
+    new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.82, metalness: 0.0 })
+  );
+  crown.position.y = trunkHeight + 0.2;
+  crown.scale.set(0.75 * leafScale, 0.65 * leafScale, 0.75 * leafScale);
+  crown.castShadow = true;
+  crown.userData = { modelPart: "tree-crown-main" };
+  treeGroup.add(crown);
+
+  // Copa secundária para volume
+  const crownSecondary = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 14, 12),
+    new THREE.MeshStandardMaterial({ color: leafColor.clone().multiplyScalar(0.95), roughness: 0.82, metalness: 0.0 })
+  );
+  crownSecondary.position.set(0.14, trunkHeight + 0.08, -0.06);
+  crownSecondary.scale.set(0.7 * leafScale, 0.58 * leafScale, 0.7 * leafScale);
+  crownSecondary.castShadow = true;
+  crownSecondary.userData = { modelPart: "tree-crown-secondary" };
+  treeGroup.add(crownSecondary);
+
+  treeGroup.userData = {
+    modelType: "tree",
+    cropType,
+    config,
+    seed,
+  };
+
+  return treeGroup;
+}
+
+/**
  * Cria uma folha individual (lâmina de planta)
  * 
  * A folha é um plano geometricamente simples com material verde
@@ -319,6 +404,11 @@ function createLeaf(height, color, config, randomSeed) {
  */
 function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
   if (!cropGroup.userData.config) return;
+
+  if (cropGroup.userData.modelType === "tree") {
+    updateTreeModel(cropGroup, growthProgress, timeElapsed);
+    return;
+  }
   
   const config = cropGroup.userData.config;
   const currentHeight = config.baseHeight * getHeightFactorFromGrowthProgress(growthProgress);
@@ -353,6 +443,63 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
       const wave = Math.sin(timeElapsed * leaf.userData.waveFrequency + index) * 
                    leaf.userData.waveAmplitude;
       leaf.rotation.z = wave;
+    }
+  });
+}
+
+/**
+ * Atualiza arvore (tronco + copa) em tempo real.
+ */
+function updateTreeModel(treeGroup, growthProgress, timeElapsed = 0) {
+  const config = treeGroup.userData.config;
+  if (!config) return;
+
+  const heightFactor = getHeightFactorFromGrowthProgress(growthProgress);
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
+  const totalHeight = config.baseHeight * heightFactor;
+  const trunkHeight = Math.max(0.12, totalHeight * 0.62);
+
+  const leafColor = interpolateGrowthColor(
+    growthProgress,
+    config.color.young,
+    config.color.mature,
+    config.color.harvestReady
+  );
+  const trunkColor = interpolateGrowthColor(
+    growthProgress,
+    config.trunkColor.young,
+    config.trunkColor.mature,
+    config.trunkColor.harvestReady
+  );
+
+  treeGroup.children.forEach((part, index) => {
+    if (!part.isMesh) return;
+    const partType = part.userData.modelPart;
+
+    if (partType === "tree-trunk") {
+      part.scale.y = trunkHeight;
+      part.position.y = 0;
+      part.material.color.copy(trunkColor);
+      return;
+    }
+
+    if (partType === "tree-crown-main") {
+      part.position.y = trunkHeight + 0.1;
+      part.scale.set(0.75 * leafScale, 0.65 * leafScale, 0.75 * leafScale);
+      part.material.color.copy(leafColor);
+      if (timeElapsed > 0) {
+        part.rotation.z = Math.sin(timeElapsed * config.waveFrequency + index) * config.waveAmplitude;
+      }
+      return;
+    }
+
+    if (partType === "tree-crown-secondary") {
+      part.position.set(0.14, trunkHeight + 0.1, -0.06);
+      part.scale.set(0.7 * leafScale, 0.58 * leafScale, 0.7 * leafScale);
+      part.material.color.copy(leafColor.clone().multiplyScalar(0.95));
+      if (timeElapsed > 0) {
+        part.rotation.x = Math.sin(timeElapsed * config.waveFrequency * 0.75 + index) * config.waveAmplitude * 0.7;
+      }
     }
   });
 }
