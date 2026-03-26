@@ -369,6 +369,26 @@ function createTreeModel(cropType, growthProgress, posX, posZ, seed = 0) {
   return treeGroup;
 }
 
+let sharedLeafBladeGeometry = null;
+
+/**
+ * Geometria base reutilizável de folha (não retangular), com ponta no topo.
+ * A base da folha fica em y=0 para facilitar ancoragem no caule/chão.
+ */
+function getLeafBladeGeometry() {
+  if (sharedLeafBladeGeometry) return sharedLeafBladeGeometry;
+
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.quadraticCurveTo(0.32, 0.18, 0.42, 0.46);
+  shape.quadraticCurveTo(0.36, 0.82, 0, 1);
+  shape.quadraticCurveTo(-0.36, 0.82, -0.42, 0.46);
+  shape.quadraticCurveTo(-0.32, 0.18, 0, 0);
+
+  sharedLeafBladeGeometry = new THREE.ShapeGeometry(shape, 10);
+  return sharedLeafBladeGeometry;
+}
+
 /**
  * Cria modelo 3D de girasol (caule, folhas, miolo e petalas) com crescimento progressivo.
  */
@@ -420,25 +440,25 @@ function createSunflowerModel(cropType, growthProgress, posX, posZ, seed = 0) {
   group.add(stem);
 
   const sideLeafA = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.18, 0.24),
+    getLeafBladeGeometry(),
     new THREE.MeshStandardMaterial({ color: leafColor.clone().multiplyScalar(0.95), side: THREE.DoubleSide, roughness: 0.84, metalness: 0.0 })
   );
   sideLeafA.position.set(0.09, stemHeight * 0.45, 0.02);
   sideLeafA.rotation.set(-0.45, 0.6, -0.55);
-  sideLeafA.scale.set(0.72 * leafScale, 0.72 * leafScale, 1);
+  sideLeafA.scale.set(0.13 * leafScale, 0.17 * leafScale, 1);
   sideLeafA.castShadow = true;
-  sideLeafA.userData = { modelPart: "sunflower-side-leaf-a" };
+  sideLeafA.userData = { modelPart: "sunflower-side-leaf-a", baseScaleX: 0.13, baseScaleY: 0.17 };
   group.add(sideLeafA);
 
   const sideLeafB = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.16, 0.22),
+    getLeafBladeGeometry(),
     new THREE.MeshStandardMaterial({ color: leafColor.clone().multiplyScalar(0.92), side: THREE.DoubleSide, roughness: 0.84, metalness: 0.0 })
   );
   sideLeafB.position.set(-0.1, stemHeight * 0.58, -0.03);
   sideLeafB.rotation.set(-0.38, -0.72, 0.5);
-  sideLeafB.scale.set(0.68 * leafScale, 0.68 * leafScale, 1);
+  sideLeafB.scale.set(0.11 * leafScale, 0.15 * leafScale, 1);
   sideLeafB.castShadow = true;
-  sideLeafB.userData = { modelPart: "sunflower-side-leaf-b" };
+  sideLeafB.userData = { modelPart: "sunflower-side-leaf-b", baseScaleX: 0.11, baseScaleY: 0.15 };
   group.add(sideLeafB);
 
   const flowerCenter = new THREE.Mesh(
@@ -496,13 +516,7 @@ function createLeaf(height, color, config, randomSeed) {
   const widthMin = typeof config.leafWidthMin === "number" ? config.leafWidthMin : 0.08;
   const widthMax = typeof config.leafWidthMax === "number" ? config.leafWidthMax : 0.12;
   const leafWidth = widthMin + randomSeed * Math.max(0.001, widthMax - widthMin);
-  const leafHeight = 1;
-  
-  // Cria geometria planar
-  const geometry = new THREE.PlaneGeometry(leafWidth, leafHeight);
-  
-  // Move origem para a base (bottom) da folha para rotacionar corretamente
-  geometry.translate(0, leafHeight / 2, 0);
+  const geometry = getLeafBladeGeometry();
   
   // Material com cor baseada no tipo de planta
   const material = new THREE.MeshStandardMaterial({
@@ -516,7 +530,7 @@ function createLeaf(height, color, config, randomSeed) {
   const leaf = new THREE.Mesh(geometry, material);
   leaf.scale.y = height;
   const widthVariation = 0.86 + randomSeed * 0.28;
-  leaf.scale.x = widthVariation;
+  leaf.scale.x = leafWidth * widthVariation;
   
   // Leve rotação em X para dar aparência mais natural
   leaf.rotation.x = -0.2 - randomSeed * 0.3;
@@ -642,7 +656,7 @@ function updateSunflowerModel(group, growthProgress, timeElapsed = 0) {
 
     if (type === "sunflower-side-leaf-a") {
       part.position.set(0.09, stemHeight * 0.45, 0.02);
-      part.scale.set(0.72 * leafScale, 0.72 * leafScale, 1);
+      part.scale.set((part.userData.baseScaleX || 0.13) * leafScale, (part.userData.baseScaleY || 0.17) * leafScale, 1);
       part.material.color.copy(leafColor.clone().multiplyScalar(0.95));
       if (timeElapsed > 0) {
         part.rotation.z = -0.55 + Math.sin(timeElapsed * config.waveFrequency + index) * config.waveAmplitude * 0.6;
@@ -652,7 +666,7 @@ function updateSunflowerModel(group, growthProgress, timeElapsed = 0) {
 
     if (type === "sunflower-side-leaf-b") {
       part.position.set(-0.1, stemHeight * 0.58, -0.03);
-      part.scale.set(0.68 * leafScale, 0.68 * leafScale, 1);
+      part.scale.set((part.userData.baseScaleX || 0.11) * leafScale, (part.userData.baseScaleY || 0.15) * leafScale, 1);
       part.material.color.copy(leafColor.clone().multiplyScalar(0.92));
       if (timeElapsed > 0) {
         part.rotation.z = 0.5 + Math.sin(timeElapsed * config.waveFrequency * 0.85 + index) * config.waveAmplitude * 0.55;
