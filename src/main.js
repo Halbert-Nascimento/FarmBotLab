@@ -1,5 +1,6 @@
 import { createFarmWorld } from "./core/farmWorld.js";
 import { createProgramRunner } from "./core/programRunner.js";
+import { createGamePhases } from "./core/gamePhases.js";
 import { createThreeFarmView } from "./render/threeFarmView.js";
 import { createEditor } from "./ui/editor.js";
 import { createLogger } from "./ui/logger.js";
@@ -41,6 +42,13 @@ function debugAlert(message) {
 
 const logger = createLogger(logEl);
 
+const gamePhases = createGamePhases({
+  onLog: logger.append,
+  onPhaseChanged: ({ phase }) => {
+    logger.append(`Fase atual: ${phase.title} (${phase.id})`);
+  },
+});
+
 const editor = createEditor({
   rootId: "editor",
   defaultCode: DEFAULT_CODE,
@@ -73,6 +81,7 @@ async function performAction(action) {
   const actionType = command.type;
 
   if (actionType === "right") {
+    gamePhases.recordEvent("move");
     const result = world.moveBy(1, 0);
     if (result.moved) {
       await view.animateMove(result.from, result.to);
@@ -84,6 +93,7 @@ async function performAction(action) {
   }
 
   if (actionType === "left") {
+    gamePhases.recordEvent("move");
     const result = world.moveBy(-1, 0);
     if (result.moved) {
       await view.animateMove(result.from, result.to);
@@ -95,6 +105,7 @@ async function performAction(action) {
   }
 
   if (actionType === "up") {
+    gamePhases.recordEvent("move");
     const result = world.moveBy(0, -1);
     if (result.moved) {
       await view.animateMove(result.from, result.to);
@@ -106,6 +117,7 @@ async function performAction(action) {
   }
 
   if (actionType === "down") {
+    gamePhases.recordEvent("move");
     const result = world.moveBy(0, 1);
     if (result.moved) {
       await view.animateMove(result.from, result.to);
@@ -117,6 +129,7 @@ async function performAction(action) {
   }
 
   if (actionType === "plant") {
+    gamePhases.recordEvent("plant");
     const cropArg = command.args && command.args.length > 0 ? command.args[0] : "generic";
     const cropType = typeof cropArg === "string" && cropArg.trim() ? cropArg.trim().toLowerCase() : "generic";
     const result = world.plant(cropType);
@@ -126,6 +139,7 @@ async function performAction(action) {
   }
 
   if (actionType === "harvest") {
+    gamePhases.recordEvent("harvest");
     const result = world.harvest();
     view.setCrop(result.x, result.y, null);
     logger.append(`Colheu em (${result.x}, ${result.y})`);
@@ -169,6 +183,7 @@ window.setCropGrowthSettings = (patch) => {
 };
 
 runBtn.addEventListener("click", () => {
+  gamePhases.recordEvent("run");
   runner.run();
 });
 
@@ -195,3 +210,14 @@ window.addEventListener("resize", () => {
 setupDebugHooks();
 resetWorld();
 view.resize();
+
+window.gamePhases = {
+  getCurrent: () => gamePhases.getCurrentPhase(),
+  getAll: () => gamePhases.getAllPhases(),
+  getUnlockedFeatures: () => gamePhases.getUnlockedFeatures(),
+  advance: () => gamePhases.advancePhase("manual-console"),
+  setPhase: (value) => gamePhases.setPhase(value),
+  resetProgress: (options) => gamePhases.resetProgress(options || {}),
+};
+
+logger.append("Sistema de fases habilitado. Use window.gamePhases para inspecionar/prototipar.");
