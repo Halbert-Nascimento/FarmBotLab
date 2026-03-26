@@ -7,13 +7,22 @@ import { createLogger } from "./ui/logger.js";
 const DEBUG_ALERTS = true;
 const GRID_SIZE = 8;
 
+// Configuração central de crescimento (ajustável sem alterar lógica interna da renderização).
+const CROP_GROWTH_SETTINGS = {
+  globalTimeScale: 1,
+  perCropDurationSeconds: {
+    capim: 15,
+  },
+};
+
 const DEFAULT_CODE = `
   moveRight();
-  plant("wheat");
-
-
-
+  plant("capim");
   moveDown();
+  plant("capim");
+  moveDown();
+  plant("capim");
+  moveRight();
   harvest();
 `;
 
@@ -53,6 +62,8 @@ const view = createThreeFarmView({
   gridSize: GRID_SIZE,
   avatarType: avatarSelect ? avatarSelect.value : "drone",
   initialZoom: Number(zoomSlider.value),
+  // Envia configurações de crescimento para o sistema visual.
+  cropGrowthSettings: CROP_GROWTH_SETTINGS,
   onLog: logger.append,
   onDebugError: debugAlert,
 });
@@ -150,6 +161,12 @@ function setupDebugHooks() {
     debugAlert(msg);
   });
 }
+
+// API global para manutenção/testes: permite ajustar velocidade e duração em runtime.
+// Ex.: window.setCropGrowthSettings({ globalTimeScale: 1.5, perCropDurationSeconds: { capim: 10 } })
+window.setCropGrowthSettings = (patch) => {
+  view.setCropGrowthSettings(patch || {});
+};
 
 runBtn.addEventListener("click", () => {
   runner.run();
