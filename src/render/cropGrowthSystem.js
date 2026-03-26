@@ -132,6 +132,48 @@ function interpolateGrowthColor(progress, colorYoung, colorMature, colorHarvest)
   return interpolatedColor;
 }
 
+/**
+ * Converte progresso de crescimento em escala visual da planta.
+ *
+ * Regra de UX: ao plantar, já mostramos um volume mínimo para feedback imediato.
+ * A planta ainda continua crescendo progressivamente até 1.0.
+ *
+ * @param {number} growthProgress - Progresso 0.0-1.0
+ * @returns {number} Escala vertical da planta
+ */
+function getLeafScaleFromGrowthProgress(growthProgress) {
+  const clamped = Math.min(1, Math.max(0, growthProgress));
+  const seedVisibleScale = 0.14;
+
+  if (clamped < 0.15) {
+    // Semente visível desde o instante do plantio.
+    return seedVisibleScale;
+  }
+
+  if (clamped < 0.35) {
+    // Transição contínua entre semente visível e broto.
+    return seedVisibleScale + ((clamped - 0.15) / 0.2) * (1 - seedVisibleScale);
+  }
+
+  return 1.0;
+}
+
+/**
+ * Fator de altura da planta ao longo do crescimento.
+ *
+ * Regra de UX: no instante do plantio já existe altura mínima de broto,
+ * evitando que o modelo apareça "atrasado" alguns segundos depois.
+ *
+ * @param {number} growthProgress - Progresso 0.0-1.0
+ * @returns {number} Fator de altura (0.0-1.0)
+ */
+function getHeightFactorFromGrowthProgress(growthProgress) {
+  const clamped = Math.min(1, Math.max(0, growthProgress));
+  const easedProgress = easeGrowthProgress(clamped);
+  const minVisibleHeightFactor = 0.22;
+  return Math.max(minVisibleHeightFactor, easedProgress);
+}
+
 // ===== GERADOR DE MODELOS 3D =====
 
 /**
@@ -148,12 +190,9 @@ function interpolateGrowthColor(progress, colorYoung, colorMature, colorHarvest)
  */
 function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
   const config = CROP_CONFIGS[cropType] || CROP_CONFIGS.capim;
-  
-  // Easing do progresso para crescimento mais natural
-  const easedProgress = easeGrowthProgress(growthProgress);
-  
-  // Calcula altura atual baseada no progresso
-  const currentHeight = config.baseHeight * easedProgress;
+
+  // Altura mínima inicial garante broto visível imediatamente ao plantar.
+  const currentHeight = config.baseHeight * getHeightFactorFromGrowthProgress(growthProgress);
   
   // Cor interpolada baseada no progresso
   const currentColor = interpolateGrowthColor(
@@ -173,19 +212,8 @@ function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
     return n - Math.floor(n);
   }
   
-  // Escala do tamanho das folhas baseada no progresso
-  // Começa invisível, cresce até 1.0
-  let leafScale = 0;
-  if (growthProgress < 0.15) {
-    // Fase semente (0.0-0.15): praticamente invisível
-    leafScale = 0;
-  } else if (growthProgress < 0.35) {
-    // Fase broto (0.15-0.35): emerge lentamente
-    leafScale = (growthProgress - 0.15) / 0.2;
-  } else {
-    // Fases posteriores (0.35+): escala completa
-    leafScale = 1.0;
-  }
+  // Escala visual com feedback imediato no plantio.
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
   
   // tuftCount controla quantos "mini-capins" (tufos) existirão dentro do mesmo bloco.
   const tuftCount = Math.max(1, Math.round((config.tuftCount || 1) * Math.max(0.6, config.density || 1)));
@@ -293,8 +321,7 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
   if (!cropGroup.userData.config) return;
   
   const config = cropGroup.userData.config;
-  const easedProgress = easeGrowthProgress(growthProgress);
-  const currentHeight = config.baseHeight * easedProgress;
+  const currentHeight = config.baseHeight * getHeightFactorFromGrowthProgress(growthProgress);
   
   // Atualiza cor
   const currentColor = interpolateGrowthColor(
@@ -304,15 +331,8 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
     config.color.harvestReady
   );
   
-  // Calcula escala de folhas (visibilidade por fase)
-  let leafScale = 0;
-  if (growthProgress < 0.15) {
-    leafScale = 0;
-  } else if (growthProgress < 0.35) {
-    leafScale = (growthProgress - 0.15) / 0.2;
-  } else {
-    leafScale = 1.0;
-  }
+  // Mesma regra usada na criação para manter consistência visual.
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
   
   // Atualiza cada folha
   cropGroup.children.forEach((leaf, index) => {
@@ -345,6 +365,8 @@ export {
   calculateGrowthProgressByTime,
   easeGrowthProgress,
   interpolateGrowthColor,
+  getLeafScaleFromGrowthProgress,
+  getHeightFactorFromGrowthProgress,
   createCropModel,
   updateCropModel,
 };
