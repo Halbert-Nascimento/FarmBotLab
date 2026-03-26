@@ -27,6 +27,7 @@ const CROP_COLORS = {
 
 const TILE_CORNER_RADIUS = 0.02;
 const TILE_CORNER_CURVE_SEGMENTS = 3;
+const DEFAULT_SURFACE_STATE = "pure"; // opções: "pure" ou "tilled"
 
 // Funções de helper para alternar perfis
 function setPerformanceProfile(profile) {
@@ -159,9 +160,14 @@ function createSoilTextureBundle(soilType, surfaceState) {
   const albedoCtx = albedoCanvas.getContext("2d");
   const normalCtx = normalCanvas.getContext("2d");
   const aoCtx = aoCanvas.getContext("2d");
+  const heightCanvas = document.createElement("canvas");
+  heightCanvas.width = size;
+  heightCanvas.height = size;
+  const heightCtx = heightCanvas.getContext("2d");
   const albedoData = albedoCtx.createImageData(size, size);
   const normalData = normalCtx.createImageData(size, size);
   const aoData = aoCtx.createImageData(size, size);
+  const heightData = heightCtx.createImageData(size, size);
   const heights = new Float32Array(size * size);
   const seed = soilType.length * 97 + (surfaceState === "tilled" ? 31 : 11);
 
@@ -180,10 +186,11 @@ function createSoilTextureBundle(soilType, surfaceState) {
       let height = coarse * 0.58 + detail * 0.29 + micro * 0.13;
 
       if (surfaceState === "tilled") {
-        const furrowPos = (x * dirX + y * dirY) * profile.stripeFreq;
-        const furrowWave = 0.5 + 0.5 * Math.sin(furrowPos + detail * 2.8);
-        const furrowMask = Math.pow(1 - Math.abs(furrowWave * 2 - 1), 5.2);
-        height = clamp01(height * 0.8 + (1 - furrowMask) * 0.2);
+        const furrowPos = x * (profile.stripeFreq * 0.24) + valueNoise2d(0, y * 0.04, seed + 901) * 0.35;
+        const wave = 0.5 + 0.5 * Math.sin(furrowPos + detail * 0.55);
+        const grooveMask = Math.pow(1 - Math.abs(wave * 2 - 1), 4.8);
+        const ridgeMask = 1 - grooveMask;
+        height = clamp01(height * 0.3 + ridgeMask * 0.58 + micro * 0.12);
       }
 
       heights[idx] = height;
@@ -211,19 +218,32 @@ function createSoilTextureBundle(soilType, surfaceState) {
       const variance = broadNoise + fineNoise;
       let furrowDarken = 0;
       if (surfaceState === "tilled") {
-        const furrowPos = (x * dirX + y * dirY) * profile.stripeFreq;
-        const furrowWave = 0.5 + 0.5 * Math.sin(furrowPos + h * 3.2);
-        const furrowMask = Math.pow(1 - Math.abs(furrowWave * 2 - 1), 6.4);
-        furrowDarken = furrowMask * 0.24;
+        const furrowPos = x * (profile.stripeFreq * 0.24) + valueNoise2d(0, y * 0.04, seed + 777) * 0.35;
+        const wave = 0.5 + 0.5 * Math.sin(furrowPos + h * 0.6);
+        const grooveMask = Math.pow(1 - Math.abs(wave * 2 - 1), 5.5);
+        furrowDarken = grooveMask * 0.7;
       }
-      const albedo = clamp01(tone + variance - furrowDarken);
+      const tilledDarken = surfaceState === "tilled" ? 0.15 : 0;
+      const albedo = clamp01(tone + variance - furrowDarken - tilledDarken);
       albedoData.data[i4] = Math.round(clamp01(base.r * albedo) * 255);
       albedoData.data[i4 + 1] = Math.round(clamp01(base.g * albedo) * 255);
       albedoData.data[i4 + 2] = Math.round(clamp01(base.b * albedo) * 255);
       albedoData.data[i4 + 3] = 255;
 
-      const dx = (hL - hR) * (profile.normalScale * 2.0);
-      const dy = (hD - hU) * (profile.normalScale * 2.0);
+      const heightByte = Math.round(clamp01(h) * 255);
+      heightData.data[i4] = heightByte;
+      heightData.data[i4 + 1] = heightByte;
+      heightData.data[i4 + 2] = heightByte;
+      heightData.data[i4 + 3] = 255;
+
+      let dx = (hL - hR) * (profile.normalScale * 2.0);
+      let dy = (hD - hU) * (profile.normalScale * 2.0);
+      if (surfaceState === "tilled") {
+        const furrowPos = x * (profile.stripeFreq * 0.24) + valueNoise2d(0, y * 0.04, seed + 633) * 0.35;
+        const furrowSlope = Math.cos(furrowPos + h * 0.6) * 0.9;
+        dx += furrowSlope;
+        dy += furrowSlope * 0.03;
+      }
       const len = Math.sqrt(dx * dx + dy * dy + 1);
       const nx = dx / len;
       const ny = dy / len;
@@ -235,8 +255,8 @@ function createSoilTextureBundle(soilType, surfaceState) {
 
       const slope = Math.abs(hL - hR) + Math.abs(hD - hU);
       const valley = 1 - h;
-      const aoBase = surfaceState === "tilled" ? 0.84 : 0.88;
-      const aoValue = clamp01(aoBase + h * 0.19 - slope * 0.62 - valley * 0.04);
+      const aoBase = surfaceState === "tilled" ? 0.8 : 0.9;
+      const aoValue = clamp01(aoBase + h * 0.2 - slope * (surfaceState === "tilled" ? 0.82 : 0.56) - valley * 0.04);
       const aoByte = Math.round(aoValue * 255);
       aoData.data[i4] = aoByte;
       aoData.data[i4 + 1] = aoByte;
@@ -248,14 +268,16 @@ function createSoilTextureBundle(soilType, surfaceState) {
   albedoCtx.putImageData(albedoData, 0, 0);
   normalCtx.putImageData(normalData, 0, 0);
   aoCtx.putImageData(aoData, 0, 0);
+  heightCtx.putImageData(heightData, 0, 0);
 
   const albedoTexture = new THREE.CanvasTexture(albedoCanvas);
   const normalTexture = new THREE.CanvasTexture(normalCanvas);
   const aoTexture = new THREE.CanvasTexture(aoCanvas);
-  [albedoTexture, normalTexture, aoTexture].forEach((texture) => {
+  const heightTexture = new THREE.CanvasTexture(heightCanvas);
+  [albedoTexture, normalTexture, aoTexture, heightTexture].forEach((texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(6.2, 6.2);
+    texture.repeat.set(2.0, 2.0);
     texture.needsUpdate = true;
   });
   albedoTexture.colorSpace = THREE.SRGBColorSpace;
@@ -264,6 +286,7 @@ function createSoilTextureBundle(soilType, surfaceState) {
     map: albedoTexture,
     normalMap: normalTexture,
     aoMap: aoTexture,
+    bumpMap: heightTexture,
     profile,
   };
   soilTextureCache.set(cacheKey, bundle);
@@ -293,6 +316,50 @@ function createTileMaterial(soilType, cropType) {
     roughness: surfaceState === "tilled" ? clamp01(bundle.profile.roughness + 0.03) : bundle.profile.roughness,
     metalness: 0.02,
     normalScale: new THREE.Vector2(bundle.profile.normalScale, bundle.profile.normalScale),
+  });
+
+  soilMaterialCache.set(cacheKey, material);
+  return material;
+}
+
+function normalizeSurfaceState(surfaceState) {
+  return surfaceState === "tilled" ? "tilled" : "pure";
+}
+
+function createTileMaterialWithSurface(soilType, cropType, surfaceState) {
+  const normalizedSurface = normalizeSurfaceState(surfaceState);
+  const cacheKey = `${soilType}:${cropType || "none"}:${normalizedSurface}`;
+  const cachedMaterial = soilMaterialCache.get(cacheKey);
+  if (cachedMaterial) return cachedMaterial;
+
+  const bundle = createSoilTextureBundle(soilType, normalizedSurface);
+  let tint = new THREE.Color("#ffffff");
+  const soilColor = new THREE.Color(getColor(SOIL_COLORS[soilType], SOIL_COLORS.loam));
+  if (!cropType && normalizedSurface === "tilled") {
+    tint = soilColor.clone().multiplyScalar(0.78);
+  }
+  if (cropType) {
+    const cropColor = new THREE.Color(getColor(CROP_COLORS[cropType], CROP_COLORS.generic));
+    tint = soilColor.clone().lerp(cropColor, 0.1).lerp(new THREE.Color("#ffffff"), 0.2);
+  }
+
+  const material = new THREE.MeshStandardMaterial({
+    color: tint,
+    map: bundle.map,
+    normalMap: bundle.normalMap,
+    aoMap: bundle.aoMap,
+    bumpMap: bundle.bumpMap,
+    bumpScale: normalizedSurface === "tilled" ? 0.085 : 0.025,
+    aoMapIntensity: normalizedSurface === "tilled" ? 0.52 : 0.24,
+    roughness:
+      normalizedSurface === "tilled"
+        ? clamp01(bundle.profile.roughness + 0.04)
+        : bundle.profile.roughness,
+    metalness: 0.02,
+    normalScale:
+      normalizedSurface === "tilled"
+        ? new THREE.Vector2(bundle.profile.normalScale * 2.1, bundle.profile.normalScale * 2.1)
+        : new THREE.Vector2(bundle.profile.normalScale, bundle.profile.normalScale),
   });
 
   soilMaterialCache.set(cacheKey, material);
@@ -532,7 +599,7 @@ export function createThreeFarmView({
 
   for (let y = 0; y < gridSize; y += 1) {
     for (let x = 0; x < gridSize; x += 1) {
-      const tile = new THREE.Mesh(tileGeometry, createTileMaterial("loam", null));
+      const tile = new THREE.Mesh(tileGeometry, createTileMaterialWithSurface("loam", null, DEFAULT_SURFACE_STATE));
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(tileGeometry), tileEdgeMaterial);
       tile.add(edges);
       const wp = gridToWorld(x, y, gridSize);
@@ -541,6 +608,7 @@ export function createThreeFarmView({
       tile.castShadow = false;
       tile.userData.soilType = "loam";
       tile.userData.cropType = null;
+      tile.userData.surfaceState = DEFAULT_SURFACE_STATE;
       farmGroup.add(tile);
       tiles.set(tileKey(x, y), tile);
     }
@@ -577,7 +645,8 @@ export function createThreeFarmView({
   function setTileState(x, y, soilType, cropType) {
     const tile = tiles.get(tileKey(x, y));
     if (!tile) return;
-    tile.material = createTileMaterial(soilType || "loam", cropType || null);
+    const surfaceState = normalizeSurfaceState(tile.userData.surfaceState);
+    tile.material = createTileMaterialWithSurface(soilType || "loam", cropType || null, surfaceState);
   }
 
   function setSoilType(x, y, soilType) {
@@ -594,7 +663,17 @@ export function createThreeFarmView({
 
     const soilType = tile.userData.soilType || "loam";
     tile.userData.cropType = cropType || null;
+    if (cropType) {
+      tile.userData.surfaceState = "tilled";
+    }
     setTileState(x, y, soilType, cropType || null);
+  }
+
+  function setSoilSurface(x, y, surfaceState) {
+    const tile = tiles.get(tileKey(x, y));
+    if (!tile) return;
+    tile.userData.surfaceState = normalizeSurfaceState(surfaceState);
+    setTileState(x, y, tile.userData.soilType || "loam", tile.userData.cropType || null);
   }
 
   function syncBotPosition(position) {
@@ -648,7 +727,8 @@ export function createThreeFarmView({
     for (const tile of tiles.values()) {
       tile.userData.soilType = "loam";
       tile.userData.cropType = null;
-      tile.material = createTileMaterial("loam", null);
+      tile.userData.surfaceState = DEFAULT_SURFACE_STATE;
+      tile.material = createTileMaterialWithSurface("loam", null, DEFAULT_SURFACE_STATE);
     }
 
     snapshot.soils.forEach((entry) => {
@@ -758,6 +838,7 @@ export function createThreeFarmView({
   return {
     setCrop,
     setSoilType,
+    setSoilSurface,
     setAvatarType,
     syncBotPosition,
     animateMove,
