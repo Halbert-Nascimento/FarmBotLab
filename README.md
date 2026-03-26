@@ -23,15 +23,16 @@ http://localhost:5500
 
 - Cena 3D com Three.js em camera ortografica (estilo isometrico)
 - Zoom por slider
-- Editor de codigo com CodeMirror 6
+- Editor de codigo com Ace Editor
 - Execucao segura de JavaScript com JS-Interpreter
-- API basica para controlar o bot:
-  - moveRight()
-  - moveLeft()
-  - moveUp()
-  - moveDown()
-  - plant()
-  - harvest()
+- API principal para controlar o bot:
+  - moverDireita()
+  - moverEsquerda()
+  - moverCima()
+  - moverBaixo()
+  - plantar()
+  - colher()
+- Compatibilidade: comandos antigos em ingles (moveRight, plant, etc.) continuam funcionando
 - Log de execucao
 
 ## Proximos passos recomendados

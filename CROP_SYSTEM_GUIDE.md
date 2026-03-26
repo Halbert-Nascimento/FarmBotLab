@@ -7,30 +7,32 @@ Guia objetivo com todos os comandos de teste do sistema atual.
 Estes comandos funcionam dentro do editor de codigo do jogo:
 
 ```javascript
-moveRight();
-moveLeft();
-moveUp();
-moveDown();
-plant("capim");
-plant("trigo");
-plant("milho");
-plant("arvore");
-plant("girasol");
-plant("morango");
-harvest();
+moverDireita();
+moverEsquerda();
+moverCima();
+moverBaixo();
+plantar("capim");
+plantar("trigo");
+plantar("milho");
+plantar("arvore");
+plantar("girasol");
+plantar("morango");
+colher();
 ```
+
+Compatibilidade: os comandos antigos em ingles (`moveRight`, `plant`, etc.) continuam funcionando.
 
 ### Exemplo rapido (editor)
 
 ```javascript
-moveRight();
-plant("capim");
-moveDown();
-plant("trigo");
-moveDown();
-plant("arvore");
-moveRight();
-harvest();
+moverDireita();
+plantar("capim");
+moverBaixo();
+plantar("trigo");
+moverBaixo();
+plantar("arvore");
+moverDireita();
+colher();
 ```
 
 ## 2. Comandos de Terras (console do navegador)
@@ -120,18 +122,18 @@ window.setCropGrowthSettings({
 ### 5.1 Teste de movimentos + plantio (editor)
 
 ```javascript
-moveRight();
-plant("capim");
-moveRight();
-plant("trigo");
-moveRight();
-plant("milho");
-moveRight();
-plant("arvore");
-moveRight();
-plant("girasol");
-moveRight();
-plant("morango");
+moverDireita();
+plantar("capim");
+moverDireita();
+plantar("trigo");
+moverDireita();
+plantar("milho");
+moverDireita();
+plantar("arvore");
+moverDireita();
+plantar("girasol");
+moverDireita();
+plantar("morango");
 ```
 
 ### 5.2 Teste de terrenos variados (console)

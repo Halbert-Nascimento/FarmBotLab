@@ -16,14 +16,14 @@ const CROP_GROWTH_SETTINGS = {
 };
 
 const DEFAULT_CODE = `
-  moveRight();
-  plant("arvore");
-  moveDown();
-  plant("arvore");
-  moveDown();
-  plant("capim");
-  moveRight();
-  harvest();
+  moverDireita();
+  plantar("arvore");
+  moverBaixo();
+  plantar("arvore");
+  moverBaixo();
+  plantar("capim");
+  moverDireita();
+  colher();
 `;
 
 const logEl = document.querySelector("#log");

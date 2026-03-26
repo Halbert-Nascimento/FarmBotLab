@@ -22,6 +22,15 @@ export function createProgramRunner({ getCode, onAction, onLog, onDebugError }) 
       interpreter.setProperty(globalObject, name, interpreter.createNativeFunction(fn));
     };
 
+    // API principal em pt-BR
+    native("moverDireita", "right");
+    native("moverEsquerda", "left");
+    native("moverCima", "up");
+    native("moverBaixo", "down");
+    native("plantar", "plant");
+    native("colher", "harvest");
+
+    // Aliases legados (compatibilidade com scripts antigos)
     native("moveRight", "right");
     native("moveLeft", "left");
     native("moveUp", "up");
