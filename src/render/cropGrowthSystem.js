@@ -26,6 +26,8 @@ const CROP_CONFIGS = {
     leafCount: 8,               // Número de folhas por tufo
     tuftCount: 5,               // Quantidade de tufos no mesmo bloco
     spreadRadius: 0.22,         // Espalhamento dos tufos dentro do bloco
+    leafWidthMin: 0.08,
+    leafWidthMax: 0.12,
     waveAmplitude: 0.15,        // Amplitude do movimento ondulatório
     waveFrequency: 0.8,         // Frequência do movimento
     density: 1.2,               // Densidade de folhas (multiplicador)
@@ -43,16 +45,20 @@ const CROP_CONFIGS = {
     density: 1.0,
   },
   trigo: {
-    // Trigo - planta de crescimento mais lento (futuro)
+    // Trigo - mais fino e com muito mais volume por bloco
     type: "trigo",
     displayName: "Trigo",
     color: { young: "#9ccc65", mature: "#689f38", harvestReady: "#f57f17" },
-    baseHeight: 0.5,
+    baseHeight: 0.62,
     growthDays: 20,
-    leafCount: 6,
-    waveAmplitude: 0.08,
-    waveFrequency: 0.6,
-    density: 0.9,
+    leafCount: 11,
+    tuftCount: 14,
+    spreadRadius: 0.33,
+    leafWidthMin: 0.015,
+    leafWidthMax: 0.03,
+    waveAmplitude: 0.06,
+    waveFrequency: 0.7,
+    density: 2.3,
   },
   milho: {
     // Milho - planta mais alta (futuro)
@@ -360,7 +366,9 @@ function createTreeModel(cropType, growthProgress, posX, posZ, seed = 0) {
  */
 function createLeaf(height, color, config, randomSeed) {
   // Dimensões da folha
-  const leafWidth = 0.08 + randomSeed * 0.04;  // Largura varia 0.08-0.12
+  const widthMin = typeof config.leafWidthMin === "number" ? config.leafWidthMin : 0.08;
+  const widthMax = typeof config.leafWidthMax === "number" ? config.leafWidthMax : 0.12;
+  const leafWidth = widthMin + randomSeed * Math.max(0.001, widthMax - widthMin);
   const leafHeight = 1;
   
   // Cria geometria planar
