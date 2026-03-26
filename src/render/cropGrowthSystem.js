@@ -74,6 +74,19 @@ const CROP_CONFIGS = {
     waveFrequency: 0.45,
     density: 1.0,
   },
+  morango: {
+    // Morango - planta frutifera rasteira
+    type: "morango",
+    displayName: "Morango",
+    color: { young: "#6fbf5b", mature: "#4e9b45", harvestReady: "#3e7f39" },
+    vineColor: { young: "#7abf62", mature: "#5f9c4e", harvestReady: "#4d7f40" },
+    fruitColor: { young: "#d97272", mature: "#cf3f3f", harvestReady: "#b52020" },
+    baseHeight: 0.32,
+    growthDays: 18,
+    waveAmplitude: 0.05,
+    waveFrequency: 0.7,
+    density: 1.0,
+  },
   milho: {
     // Milho - planta mais alta (futuro)
     type: "milho",
@@ -228,6 +241,9 @@ function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
   }
   if (cropType === "girasol") {
     return createSunflowerModel(cropType, growthProgress, posX, posZ, seed);
+  }
+  if (cropType === "morango") {
+    return createGroundFruitModel(cropType, growthProgress, posX, posZ, seed);
   }
 
   // Altura mínima inicial garante broto visível imediatamente ao plantar.
@@ -390,6 +406,31 @@ function getLeafBladeGeometry() {
 }
 
 /**
+ * Distribui os frutos da planta rasteira em aneis para evitar concentração no centro.
+ */
+function getGroundFruitOffsets() {
+  const offsets = [];
+  const rings = [
+    { count: 6, radius: 0.09, phase: 0.0 },
+    { count: 12, radius: 0.185, phase: 0.22 },
+  ];
+
+  rings.forEach((ring) => {
+    for (let i = 0; i < ring.count; i += 1) {
+      const angle = (i / ring.count) * Math.PI * 2 + ring.phase;
+      const jitter = ((i % 3) - 1) * 0.008;
+      const r = ring.radius + jitter;
+      offsets.push({
+        x: Math.cos(angle) * r,
+        z: Math.sin(angle) * (r - jitter * 0.5),
+      });
+    }
+  });
+
+  return offsets;
+}
+
+/**
  * Cria modelo 3D de girasol (caule, folhas, miolo e petalas) com crescimento progressivo.
  */
 function createSunflowerModel(cropType, growthProgress, posX, posZ, seed = 0) {
@@ -500,6 +541,85 @@ function createSunflowerModel(cropType, growthProgress, posX, posZ, seed = 0) {
 }
 
 /**
+ * Cria modelo 3D de planta frutifera rasteira (morango): folhas baixas + frutos.
+ */
+function createGroundFruitModel(cropType, growthProgress, posX, posZ, seed = 0) {
+  const config = CROP_CONFIGS[cropType] || CROP_CONFIGS.morango;
+  const heightFactor = getHeightFactorFromGrowthProgress(growthProgress);
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
+  const totalHeight = config.baseHeight * heightFactor;
+  const fruitVisibility = Math.min(1, Math.max(0, (growthProgress - 0.35) / 0.55));
+  const fruitScale = 0.25 + fruitVisibility * 0.75;
+
+  const leafColor = interpolateGrowthColor(
+    growthProgress,
+    config.color.young,
+    config.color.mature,
+    config.color.harvestReady
+  );
+  const tilledBaseColor = new THREE.Color("#7b5735");
+  const fruitColor = interpolateGrowthColor(
+    growthProgress,
+    config.fruitColor.young,
+    config.fruitColor.mature,
+    config.fruitColor.harvestReady
+  );
+
+  const group = new THREE.Group();
+  group.position.set(posX, 0, posZ);
+
+  const vine = new THREE.Mesh(
+    // Base maior para ocupar mais area no quadrado da terra.
+    new THREE.CylinderGeometry(0.25, 0.29, 0.035, 22),
+    new THREE.MeshStandardMaterial({ color: tilledBaseColor, roughness: 0.95, metalness: 0.0 })
+  );
+  vine.position.y = 0.015;
+  vine.scale.set(1.05, 1, 1.05);
+  vine.castShadow = true;
+  vine.userData = { modelPart: "ground-fruit-vine" };
+  group.add(vine);
+
+  const leafCount = 8;
+  for (let i = 0; i < leafCount; i += 1) {
+    const angle = (i / leafCount) * Math.PI * 2;
+    const leaf = new THREE.Mesh(
+      getLeafBladeGeometry(),
+      new THREE.MeshStandardMaterial({ color: leafColor, side: THREE.DoubleSide, roughness: 0.86, metalness: 0.0 })
+    );
+    const radius = 0.06 + (i % 3) * 0.02;
+    leaf.position.set(Math.cos(angle) * radius, 0.02 + totalHeight * 0.35, Math.sin(angle) * radius);
+    leaf.rotation.set(-1.1, angle, Math.sin(i * 1.7) * 0.25);
+    leaf.scale.set((0.11 + (i % 2) * 0.02) * leafScale, (0.14 + (i % 3) * 0.015) * leafScale, 1);
+    leaf.castShadow = true;
+    leaf.userData = { modelPart: "ground-fruit-leaf", leafIndex: i };
+    group.add(leaf);
+  }
+
+  const fruitOffsets = getGroundFruitOffsets();
+
+  fruitOffsets.forEach((offset, index) => {
+    const fruit = new THREE.Mesh(
+      new THREE.SphereGeometry(0.03, 12, 10),
+      new THREE.MeshStandardMaterial({ color: fruitColor, roughness: 0.7, metalness: 0.0 })
+    );
+    fruit.position.set(offset.x, 0.035 + totalHeight * 0.18, offset.z);
+    fruit.scale.set(fruitScale, fruitScale, fruitScale);
+    fruit.castShadow = true;
+    fruit.userData = { modelPart: "ground-fruit-berry", berryIndex: index };
+    group.add(fruit);
+  });
+
+  group.userData = {
+    modelType: "ground-fruit",
+    cropType,
+    config,
+    seed,
+  };
+
+  return group;
+}
+
+/**
  * Cria uma folha individual (lâmina de planta)
  * 
  * A folha é um plano geometricamente simples com material verde
@@ -565,6 +685,10 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
     updateSunflowerModel(cropGroup, growthProgress, timeElapsed);
     return;
   }
+  if (cropGroup.userData.modelType === "ground-fruit") {
+    updateGroundFruitModel(cropGroup, growthProgress, timeElapsed);
+    return;
+  }
   
   const config = cropGroup.userData.config;
   const currentHeight = config.baseHeight * getHeightFactorFromGrowthProgress(growthProgress);
@@ -601,6 +725,72 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
       const wave = Math.sin(timeElapsed * leaf.userData.waveFrequency + index) * 
                    leaf.userData.waveAmplitude;
       leaf.rotation.z = wave;
+    }
+  });
+}
+
+/**
+ * Atualiza morango (planta rasteira com frutos) em tempo real.
+ */
+function updateGroundFruitModel(group, growthProgress, timeElapsed = 0) {
+  const config = group.userData.config;
+  if (!config) return;
+
+  const heightFactor = getHeightFactorFromGrowthProgress(growthProgress);
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
+  const totalHeight = config.baseHeight * heightFactor;
+  const fruitVisibility = Math.min(1, Math.max(0, (growthProgress - 0.35) / 0.55));
+  const fruitScale = 0.25 + fruitVisibility * 0.75;
+
+  const leafColor = interpolateGrowthColor(
+    growthProgress,
+    config.color.young,
+    config.color.mature,
+    config.color.harvestReady
+  );
+  const tilledBaseColor = new THREE.Color("#7b5735");
+  const fruitColor = interpolateGrowthColor(
+    growthProgress,
+    config.fruitColor.young,
+    config.fruitColor.mature,
+    config.fruitColor.harvestReady
+  );
+
+  const fruitOffsets = getGroundFruitOffsets();
+
+  group.children.forEach((part, index) => {
+    if (!part.isMesh) return;
+    const type = part.userData.modelPart;
+
+    if (type === "ground-fruit-vine") {
+      part.position.y = 0.015;
+      // Mantem cor de terra arada na cama de cultivo do morango.
+      part.material.color.copy(tilledBaseColor);
+      // Leve expansão com o crescimento para reforçar a ocupação visual da base.
+      const baseScale = 1.05 + growthProgress * 0.12;
+      part.scale.set(baseScale, 1, baseScale);
+      return;
+    }
+
+    if (type === "ground-fruit-leaf") {
+      const i = part.userData.leafIndex || 0;
+      const angle = (i / 8) * Math.PI * 2;
+      const radius = 0.06 + (i % 3) * 0.02;
+      part.position.set(Math.cos(angle) * radius, 0.02 + totalHeight * 0.35, Math.sin(angle) * radius);
+      part.scale.set((0.11 + (i % 2) * 0.02) * leafScale, (0.14 + (i % 3) * 0.015) * leafScale, 1);
+      part.material.color.copy(leafColor);
+      if (timeElapsed > 0) {
+        part.rotation.z = Math.sin(timeElapsed * config.waveFrequency + i) * config.waveAmplitude * 0.45;
+      }
+      return;
+    }
+
+    if (type === "ground-fruit-berry") {
+      const berryIndex = part.userData.berryIndex || 0;
+      const offset = fruitOffsets[berryIndex] || fruitOffsets[0];
+      part.position.set(offset.x, 0.035 + totalHeight * 0.18, offset.z);
+      part.scale.set(fruitScale, fruitScale, fruitScale);
+      part.material.color.copy(fruitColor);
     }
   });
 }

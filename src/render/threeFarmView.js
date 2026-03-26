@@ -22,6 +22,7 @@ const CROP_COLORS = {
   generic: "#66a85f",
   arvore: "#4f8b3d",
   girasol: "#f2c93a",
+  morango: "#cf3f3f",
   wheat: "#d3b55b",
   corn: "#f0c743",
   tomato: "#c95353",

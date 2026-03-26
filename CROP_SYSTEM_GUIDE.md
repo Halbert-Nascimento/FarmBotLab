@@ -16,6 +16,7 @@ plant("trigo");
 plant("milho");
 plant("arvore");
 plant("girasol");
+plant("morango");
 harvest();
 ```
 
@@ -75,6 +76,7 @@ view.setCrop(1, 2, "trigo");
 view.setCrop(2, 2, "milho");
 view.setCrop(3, 2, "arvore");
 view.setCrop(4, 2, "girasol");
+view.setCrop(5, 2, "morango");
 
 // Remover cultura (simula colheita visual)
 view.setCrop(0, 2, null);
@@ -95,7 +97,8 @@ window.setCropGrowthSettings({
     trigo: 20,
     milho: 25,
     arvore: 30,
-    girasol: 24
+    girasol: 24,
+    morango: 18
   }
 });
 
@@ -106,7 +109,8 @@ window.setCropGrowthSettings({
     capim: 10,
     trigo: 18,
     arvore: 28,
-    girasol: 20
+    girasol: 20,
+    morango: 14
   }
 });
 ```
@@ -126,6 +130,8 @@ moveRight();
 plant("arvore");
 moveRight();
 plant("girasol");
+moveRight();
+plant("morango");
 ```
 
 ### 5.2 Teste de terrenos variados (console)
@@ -142,6 +148,7 @@ view.setCrop(1, 0, "trigo");
 view.setCrop(2, 0, "milho");
 view.setCrop(3, 0, "arvore");
 view.setCrop(4, 0, "girasol");
+view.setCrop(5, 0, "morango");
 ```
 
 ### 5.3 Teste de superficie (console)
