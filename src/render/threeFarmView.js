@@ -1,4 +1,10 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.module.js";
+import { 
+  createCropModel, 
+  updateCropModel, 
+  calculateGrowthProgressByTime,
+  CROP_CONFIGS 
+} from './cropGrowthSystem.js';
 
 function tileKey(x, y) {
   return `${x}:${y}`;
@@ -526,10 +532,20 @@ export function createThreeFarmView({
   tileSize = 1,
   initialZoom = 1.2,
   avatarType = "drone",
+  cropGrowthSettings = {},
   onDebugError,
   onLog,
 }) {
   const tiles = new Map();
+  const cropModels = new Map();  // Armazena modelos 3D das plantas: key = "x:y", value = { group, cropType, plantedTimeMs }
+  // Configuração viva de crescimento (pode ser alterada em runtime via setCropGrowthSettings).
+  const growthSettings = {
+    globalTimeScale: typeof cropGrowthSettings.globalTimeScale === "number" ? cropGrowthSettings.globalTimeScale : 1,
+    perCropDurationSeconds: {
+      ...(cropGrowthSettings.perCropDurationSeconds || {}),
+    },
+  };
+  let cropsGroup = null;         // Container para as plantas 3D
   let currentAnimation = null;
   let avatar = null;
   let lastKnownPosition = { x: 0, y: 0 };
@@ -581,6 +597,10 @@ export function createThreeFarmView({
 
   const farmGroup = new THREE.Group();
   scene.add(farmGroup);
+
+  // Container para modelos 3D das plantas
+  cropsGroup = new THREE.Group();
+  farmGroup.add(cropsGroup);
 
   const tileGeometry = createRoundedTileGeometry(
     tileSize,
@@ -662,11 +682,68 @@ export function createThreeFarmView({
     if (!tile) return;
 
     const soilType = tile.userData.soilType || "loam";
-    tile.userData.cropType = cropType || null;
-    if (cropType) {
-      tile.userData.surfaceState = "tilled";
+    const key = tileKey(x, y);
+    
+    // Remove modelo 3D anterior se existir
+    if (cropModels.has(key)) {
+      const oldModel = cropModels.get(key);
+      cropsGroup.remove(oldModel.group);
+      cropModels.delete(key);
     }
+
+    tile.userData.cropType = cropType || null;
+    
+    // Cria novo modelo 3D se plantando uma cultura
+    if (cropType) {
+      // NÃO muda surfaceState - a terra deve ser preparada ANTES de plantar
+      // tile.userData.surfaceState permanece como estava
+      
+      // Calcula posição no mundo
+      const wp = gridToWorld(x, y, gridSize);
+      
+      // Cria modelo 3D procedural
+      const cropGroup = createCropModel(
+        cropType,
+        0.0,  // Começa com progresso 0 (semente)
+        wp.x,
+        wp.z,
+        x * 73856093 ^ y * 19349663  // Seed determinístico baseado em posição
+      );
+      
+      cropsGroup.add(cropGroup);
+      
+      // Armazena informações para atualização posterior com TEMPO REAL
+      cropModels.set(key, {
+        group: cropGroup,
+        cropType: cropType,
+        plantedTimeMs: Date.now(),  // Timestamp em ms (não turn)
+      });
+    }
+    
     setTileState(x, y, soilType, cropType || null);
+  }
+
+  function resolveGrowthDurationSeconds(cropType) {
+    const config = CROP_CONFIGS[cropType] || CROP_CONFIGS.capim;
+    // Prioridade: override do sistema > valor padrão da cultura.
+    const override = growthSettings.perCropDurationSeconds[cropType];
+    const baseDuration = typeof override === "number" ? override : config.growthDays;
+    // globalTimeScale > 1 acelera crescimento; < 1 desacelera.
+    const safeScale = Math.max(0.1, growthSettings.globalTimeScale || 1);
+    return Math.max(1, baseDuration / safeScale);
+  }
+
+  function setCropGrowthSettings(patch = {}) {
+    // Permite patch parcial para facilitar manutenção e ajustes incrementais.
+    if (typeof patch.globalTimeScale === "number") {
+      growthSettings.globalTimeScale = patch.globalTimeScale;
+    }
+    if (patch.perCropDurationSeconds) {
+      growthSettings.perCropDurationSeconds = {
+        ...growthSettings.perCropDurationSeconds,
+        ...patch.perCropDurationSeconds,
+      };
+    }
   }
 
   function setSoilSurface(x, y, surfaceState) {
@@ -731,6 +808,12 @@ export function createThreeFarmView({
       tile.material = createTileMaterialWithSurface("loam", null, DEFAULT_SURFACE_STATE);
     }
 
+    // Limpa modelos 3D de plantas
+    for (const cropData of cropModels.values()) {
+      cropsGroup.remove(cropData.group);
+    }
+    cropModels.clear();
+
     snapshot.soils.forEach((entry) => {
       setSoilType(entry.x, entry.y, entry.soil.type);
     });
@@ -763,6 +846,23 @@ export function createThreeFarmView({
     farmGroup.rotation.order = "YXZ"; // Aplicar Y primeiro, depois X para melhor resultado visual
     farmGroup.rotation.y = currentRotationY;
     farmGroup.rotation.x = currentRotationX;
+
+    // Atualizar crescimento das plantas (independente de ações - tempo REAL)
+    const currentTimeMs = Date.now();
+    for (const [key, cropData] of cropModels.entries()) {
+      const config = CROP_CONFIGS[cropData.cropType];
+      if (config) {
+        // Cada planta usa sua duração final já considerando overrides + escala global.
+        const growthDurationSeconds = resolveGrowthDurationSeconds(cropData.cropType);
+        // Calcula progresso baseado em tempo real (milissegundos) em vez de turns
+        const growthProgress = calculateGrowthProgressByTime(
+          cropData.plantedTimeMs,
+          currentTimeMs,
+          growthDurationSeconds
+        );
+        updateCropModel(cropData.group, growthProgress, now / 1000); // now em segundos para animação
+      }
+    }
 
     if (renderer) {
       renderer.render(scene, camera);
@@ -846,6 +946,7 @@ export function createThreeFarmView({
     resize,
     reset,
     resetRotation,
+    setCropGrowthSettings,
   };
 }
 
