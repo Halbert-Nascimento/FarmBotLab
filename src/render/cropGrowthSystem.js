@@ -219,6 +219,19 @@ function getHeightFactorFromGrowthProgress(growthProgress) {
   return Math.max(minVisibleHeightFactor, easedProgress);
 }
 
+/**
+ * Garante que toda malha da planta projete e receba sombra.
+ * Necessário para sombra de veículos aparecer sobre as culturas.
+ */
+function enableShadowsForPlant(rootGroup) {
+  rootGroup.traverse((node) => {
+    if (node.isMesh) {
+      node.castShadow = true;
+      node.receiveShadow = true;
+    }
+  });
+}
+
 // ===== GERADOR DE MODELOS 3D =====
 
 /**
@@ -312,6 +325,8 @@ function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
     seed,
     baseProgress: growthProgress,
   };
+
+  enableShadowsForPlant(cropGroup);
   
   return cropGroup;
 }
@@ -381,6 +396,8 @@ function createTreeModel(cropType, growthProgress, posX, posZ, seed = 0) {
     config,
     seed,
   };
+
+  enableShadowsForPlant(treeGroup);
 
   return treeGroup;
 }
@@ -537,6 +554,8 @@ function createSunflowerModel(cropType, growthProgress, posX, posZ, seed = 0) {
     seed,
   };
 
+  enableShadowsForPlant(group);
+
   return group;
 }
 
@@ -615,6 +634,8 @@ function createGroundFruitModel(cropType, growthProgress, posX, posZ, seed = 0) 
     config,
     seed,
   };
+
+  enableShadowsForPlant(group);
 
   return group;
 }
