@@ -60,6 +60,20 @@ const CROP_CONFIGS = {
     waveFrequency: 0.7,
     density: 2.3,
   },
+  girasol: {
+    // Girasol - caule alto com flor no topo
+    type: "girasol",
+    displayName: "Girasol",
+    color: { young: "#86c95c", mature: "#5ea93c", harvestReady: "#4d8d34" },
+    stemColor: { young: "#7aa74a", mature: "#5f8a38", harvestReady: "#527730" },
+    petalColor: { young: "#f8d94d", mature: "#f2c93a", harvestReady: "#e7b92c" },
+    centerColor: { young: "#7b5a2b", mature: "#5a3f21", harvestReady: "#4a331b" },
+    baseHeight: 1.05,
+    growthDays: 24,
+    waveAmplitude: 0.05,
+    waveFrequency: 0.45,
+    density: 1.0,
+  },
   milho: {
     // Milho - planta mais alta (futuro)
     type: "milho",
@@ -212,6 +226,9 @@ function createCropModel(cropType, growthProgress, posX, posZ, seed = 0) {
   if (cropType === "arvore") {
     return createTreeModel(cropType, growthProgress, posX, posZ, seed);
   }
+  if (cropType === "girasol") {
+    return createSunflowerModel(cropType, growthProgress, posX, posZ, seed);
+  }
 
   // Altura mínima inicial garante broto visível imediatamente ao plantar.
   const currentHeight = config.baseHeight * getHeightFactorFromGrowthProgress(growthProgress);
@@ -353,6 +370,116 @@ function createTreeModel(cropType, growthProgress, posX, posZ, seed = 0) {
 }
 
 /**
+ * Cria modelo 3D de girasol (caule, folhas, miolo e petalas) com crescimento progressivo.
+ */
+function createSunflowerModel(cropType, growthProgress, posX, posZ, seed = 0) {
+  const config = CROP_CONFIGS[cropType] || CROP_CONFIGS.girasol;
+  const heightFactor = getHeightFactorFromGrowthProgress(growthProgress);
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
+  const totalHeight = config.baseHeight * heightFactor;
+  const stemHeight = Math.max(0.2, totalHeight * 0.78);
+  const flowerScale = Math.max(0.16, leafScale);
+
+  const leafColor = interpolateGrowthColor(
+    growthProgress,
+    config.color.young,
+    config.color.mature,
+    config.color.harvestReady
+  );
+  const stemColor = interpolateGrowthColor(
+    growthProgress,
+    config.stemColor.young,
+    config.stemColor.mature,
+    config.stemColor.harvestReady
+  );
+  const petalColor = interpolateGrowthColor(
+    growthProgress,
+    config.petalColor.young,
+    config.petalColor.mature,
+    config.petalColor.harvestReady
+  );
+  const centerColor = interpolateGrowthColor(
+    growthProgress,
+    config.centerColor.young,
+    config.centerColor.mature,
+    config.centerColor.harvestReady
+  );
+
+  const group = new THREE.Group();
+  group.position.set(posX, 0, posZ);
+
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.028, 0.036, 1, 12),
+    new THREE.MeshStandardMaterial({ color: stemColor, roughness: 0.88, metalness: 0.0 })
+  );
+  stem.scale.y = stemHeight;
+  // Geometria do cilindro nasce no centro; deslocamos para ancorar a base no solo (y=0).
+  stem.position.y = stemHeight * 0.5;
+  stem.castShadow = true;
+  stem.userData = { modelPart: "sunflower-stem" };
+  group.add(stem);
+
+  const sideLeafA = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.18, 0.24),
+    new THREE.MeshStandardMaterial({ color: leafColor.clone().multiplyScalar(0.95), side: THREE.DoubleSide, roughness: 0.84, metalness: 0.0 })
+  );
+  sideLeafA.position.set(0.09, stemHeight * 0.45, 0.02);
+  sideLeafA.rotation.set(-0.45, 0.6, -0.55);
+  sideLeafA.scale.set(0.72 * leafScale, 0.72 * leafScale, 1);
+  sideLeafA.castShadow = true;
+  sideLeafA.userData = { modelPart: "sunflower-side-leaf-a" };
+  group.add(sideLeafA);
+
+  const sideLeafB = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.16, 0.22),
+    new THREE.MeshStandardMaterial({ color: leafColor.clone().multiplyScalar(0.92), side: THREE.DoubleSide, roughness: 0.84, metalness: 0.0 })
+  );
+  sideLeafB.position.set(-0.1, stemHeight * 0.58, -0.03);
+  sideLeafB.rotation.set(-0.38, -0.72, 0.5);
+  sideLeafB.scale.set(0.68 * leafScale, 0.68 * leafScale, 1);
+  sideLeafB.castShadow = true;
+  sideLeafB.userData = { modelPart: "sunflower-side-leaf-b" };
+  group.add(sideLeafB);
+
+  const flowerCenter = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.085, 0.085, 0.03, 18),
+    new THREE.MeshStandardMaterial({ color: centerColor, roughness: 0.92, metalness: 0.0 })
+  );
+  flowerCenter.rotation.x = Math.PI / 2;
+  // Miolo exatamente no topo do caule para evitar efeito de "flor flutuando".
+  flowerCenter.position.set(0, stemHeight, 0);
+  flowerCenter.scale.set(0.8 * flowerScale, 0.8 * flowerScale, 0.8 * flowerScale);
+  flowerCenter.castShadow = true;
+  flowerCenter.userData = { modelPart: "sunflower-center" };
+  group.add(flowerCenter);
+
+  const petalCount = 16;
+  for (let i = 0; i < petalCount; i += 1) {
+    const angle = (i / petalCount) * Math.PI * 2;
+    const petal = new THREE.Mesh(
+      new THREE.ConeGeometry(0.026, 0.16, 6),
+      new THREE.MeshStandardMaterial({ color: petalColor, roughness: 0.8, metalness: 0.0 })
+    );
+    petal.rotation.z = Math.PI / 2;
+    petal.rotation.y = angle;
+    petal.position.set(Math.cos(angle) * 0.095, stemHeight, Math.sin(angle) * 0.095);
+    petal.scale.set(0.72 * flowerScale, 0.72 * flowerScale, 0.72 * flowerScale);
+    petal.castShadow = true;
+    petal.userData = { modelPart: "sunflower-petal", petalIndex: i };
+    group.add(petal);
+  }
+
+  group.userData = {
+    modelType: "sunflower",
+    cropType,
+    config,
+    seed,
+  };
+
+  return group;
+}
+
+/**
  * Cria uma folha individual (lâmina de planta)
  * 
  * A folha é um plano geometricamente simples com material verde
@@ -388,6 +515,8 @@ function createLeaf(height, color, config, randomSeed) {
   
   const leaf = new THREE.Mesh(geometry, material);
   leaf.scale.y = height;
+  const widthVariation = 0.86 + randomSeed * 0.28;
+  leaf.scale.x = widthVariation;
   
   // Leve rotação em X para dar aparência mais natural
   leaf.rotation.x = -0.2 - randomSeed * 0.3;
@@ -397,6 +526,7 @@ function createLeaf(height, color, config, randomSeed) {
     baseRotationX: leaf.rotation.x,
     waveAmplitude: config.waveAmplitude,
     waveFrequency: config.waveFrequency,
+    colorVariance: 0.92 + randomSeed * 0.16,
   };
   
   return leaf;
@@ -415,6 +545,10 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
 
   if (cropGroup.userData.modelType === "tree") {
     updateTreeModel(cropGroup, growthProgress, timeElapsed);
+    return;
+  }
+  if (cropGroup.userData.modelType === "sunflower") {
+    updateSunflowerModel(cropGroup, growthProgress, timeElapsed);
     return;
   }
   
@@ -442,8 +576,10 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
     
     // Atualiza cor
     if (leaf.material.color) {
-      leaf.material.color.copy(currentColor);
-      leaf.material.emissive.copy(currentColor.clone().multiplyScalar(0.1));
+      const variance = leaf.userData.colorVariance || 1;
+      const variedColor = currentColor.clone().multiplyScalar(variance);
+      leaf.material.color.copy(variedColor);
+      leaf.material.emissive.copy(variedColor.clone().multiplyScalar(0.1));
     }
     
     // Pequena animação de oscilação (vento)
@@ -451,6 +587,94 @@ function updateCropModel(cropGroup, growthProgress, timeElapsed = 0) {
       const wave = Math.sin(timeElapsed * leaf.userData.waveFrequency + index) * 
                    leaf.userData.waveAmplitude;
       leaf.rotation.z = wave;
+    }
+  });
+}
+
+/**
+ * Atualiza girasol (caule, folhas e flor) em tempo real.
+ */
+function updateSunflowerModel(group, growthProgress, timeElapsed = 0) {
+  const config = group.userData.config;
+  if (!config) return;
+
+  const heightFactor = getHeightFactorFromGrowthProgress(growthProgress);
+  const leafScale = getLeafScaleFromGrowthProgress(growthProgress);
+  const totalHeight = config.baseHeight * heightFactor;
+  const stemHeight = Math.max(0.2, totalHeight * 0.78);
+  const flowerScale = Math.max(0.16, leafScale);
+
+  const leafColor = interpolateGrowthColor(
+    growthProgress,
+    config.color.young,
+    config.color.mature,
+    config.color.harvestReady
+  );
+  const stemColor = interpolateGrowthColor(
+    growthProgress,
+    config.stemColor.young,
+    config.stemColor.mature,
+    config.stemColor.harvestReady
+  );
+  const petalColor = interpolateGrowthColor(
+    growthProgress,
+    config.petalColor.young,
+    config.petalColor.mature,
+    config.petalColor.harvestReady
+  );
+  const centerColor = interpolateGrowthColor(
+    growthProgress,
+    config.centerColor.young,
+    config.centerColor.mature,
+    config.centerColor.harvestReady
+  );
+
+  group.children.forEach((part, index) => {
+    if (!part.isMesh) return;
+    const type = part.userData.modelPart;
+
+    if (type === "sunflower-stem") {
+      part.scale.y = stemHeight;
+      part.position.y = stemHeight * 0.5;
+      part.material.color.copy(stemColor);
+      return;
+    }
+
+    if (type === "sunflower-side-leaf-a") {
+      part.position.set(0.09, stemHeight * 0.45, 0.02);
+      part.scale.set(0.72 * leafScale, 0.72 * leafScale, 1);
+      part.material.color.copy(leafColor.clone().multiplyScalar(0.95));
+      if (timeElapsed > 0) {
+        part.rotation.z = -0.55 + Math.sin(timeElapsed * config.waveFrequency + index) * config.waveAmplitude * 0.6;
+      }
+      return;
+    }
+
+    if (type === "sunflower-side-leaf-b") {
+      part.position.set(-0.1, stemHeight * 0.58, -0.03);
+      part.scale.set(0.68 * leafScale, 0.68 * leafScale, 1);
+      part.material.color.copy(leafColor.clone().multiplyScalar(0.92));
+      if (timeElapsed > 0) {
+        part.rotation.z = 0.5 + Math.sin(timeElapsed * config.waveFrequency * 0.85 + index) * config.waveAmplitude * 0.55;
+      }
+      return;
+    }
+
+    if (type === "sunflower-center") {
+      part.position.set(0, stemHeight, 0);
+      part.scale.set(0.8 * flowerScale, 0.8 * flowerScale, 0.8 * flowerScale);
+      part.material.color.copy(centerColor);
+      return;
+    }
+
+    if (type === "sunflower-petal") {
+      const angle = ((part.userData.petalIndex || 0) / 16) * Math.PI * 2;
+      part.position.set(Math.cos(angle) * 0.095, stemHeight, Math.sin(angle) * 0.095);
+      part.scale.set(0.72 * flowerScale, 0.72 * flowerScale, 0.72 * flowerScale);
+      part.material.color.copy(petalColor);
+      if (timeElapsed > 0) {
+        part.rotation.x = Math.sin(timeElapsed * config.waveFrequency + index * 0.2) * config.waveAmplitude * 0.3;
+      }
     }
   });
 }
