@@ -6,6 +6,123 @@ function nextFrame() {
   });
 }
 
+// js-interpreter 6.0.1 é baseado em ES5 e não entende let/const.
+// Esta função converte apenas tokens de código (não toca em strings/comentários).
+function normalizeModernDeclarations(sourceCode) {
+  const len = sourceCode.length;
+  let i = 0;
+  let out = "";
+  let state = "code";
+
+  const isIdentChar = (ch) => /[A-Za-z0-9_$]/.test(ch);
+
+  while (i < len) {
+    const ch = sourceCode[i];
+    const next = i + 1 < len ? sourceCode[i + 1] : "";
+
+    if (state === "code") {
+      if (ch === "'" ) {
+        state = "single";
+        out += ch;
+        i += 1;
+        continue;
+      }
+      if (ch === '"') {
+        state = "double";
+        out += ch;
+        i += 1;
+        continue;
+      }
+      if (ch === "`") {
+        state = "template";
+        out += ch;
+        i += 1;
+        continue;
+      }
+      if (ch === "/" && next === "/") {
+        state = "lineComment";
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+      if (ch === "/" && next === "*") {
+        state = "blockComment";
+        out += ch + next;
+        i += 2;
+        continue;
+      }
+
+      if (isIdentChar(ch)) {
+        let j = i + 1;
+        while (j < len && isIdentChar(sourceCode[j])) j += 1;
+        const token = sourceCode.slice(i, j);
+        out += token === "let" || token === "const" ? "var" : token;
+        i = j;
+        continue;
+      }
+
+      out += ch;
+      i += 1;
+      continue;
+    }
+
+    if (state === "single") {
+      out += ch;
+      i += 1;
+      if (ch === "\\" && i < len) {
+        out += sourceCode[i];
+        i += 1;
+        continue;
+      }
+      if (ch === "'") state = "code";
+      continue;
+    }
+
+    if (state === "double") {
+      out += ch;
+      i += 1;
+      if (ch === "\\" && i < len) {
+        out += sourceCode[i];
+        i += 1;
+        continue;
+      }
+      if (ch === '"') state = "code";
+      continue;
+    }
+
+    if (state === "template") {
+      out += ch;
+      i += 1;
+      if (ch === "\\" && i < len) {
+        out += sourceCode[i];
+        i += 1;
+        continue;
+      }
+      if (ch === "`") state = "code";
+      continue;
+    }
+
+    if (state === "lineComment") {
+      out += ch;
+      i += 1;
+      if (ch === "\n") state = "code";
+      continue;
+    }
+
+    if (state === "blockComment") {
+      out += ch;
+      i += 1;
+      if (ch === "*" && i < len && sourceCode[i] === "/") {
+        out += "/";
+        i += 1;
+        state = "code";
+      }
+    }
+  }
+
+  return out;
+}
+
 export function createProgramRunner({ getCode, onAction, onLog, onDebugError }) {
   const actionQueue = [];
   let isExecuting = false;
@@ -55,7 +172,12 @@ export function createProgramRunner({ getCode, onAction, onLog, onDebugError }) 
 
     let interpreter;
     try {
-      interpreter = new Interpreter(getCode(), initApi);
+      const rawCode = getCode();
+      const normalizedCode = normalizeModernDeclarations(rawCode);
+      if (normalizedCode !== rawCode) {
+        onLog("Compatibilidade: let/const foram convertidos para var no runtime.");
+      }
+      interpreter = new Interpreter(normalizedCode, initApi);
       onLog("Execucao iniciada");
     } catch (error) {
       const msg = `Erro de sintaxe: ${error.message}`;
