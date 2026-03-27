@@ -134,6 +134,8 @@ function featureLabel(feature) {
     "strategy.pathing": "Planejamento de rotas",
     "strategy.efficiency": "Eficiencia de scripts",
     "mastery.challenge": "Desafios de maestria",
+    "world.expansion.available": "Novo Mundo: desbloqueado para expansao futura",
+    "world.evolution.tier1": "Sistema de evolucao manual (tier 1)",
   };
   return labels[feature] || feature;
 }

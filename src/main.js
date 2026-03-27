@@ -153,7 +153,8 @@ async function performAction(action) {
   if (actionType === "harvest") {
     const result = world.harvest();
     if (result.wasPlanted) {
-      gamePhases.recordEvent("harvest");
+      const cropType = result.harvestedCrop && result.harvestedCrop.type ? result.harvestedCrop.type : "generic";
+      gamePhases.recordEvent("harvest", { cropType });
     }
     view.setCrop(result.x, result.y, null);
     logger.append(`Colheu em (${result.x}, ${result.y})`);
@@ -233,9 +234,13 @@ window.gamePhases = {
   getMissions: () => gamePhases.getMissions(),
   getActiveMissions: (limit) => gamePhases.getActiveMissions(limit),
   getUnlockedFeatures: () => gamePhases.getUnlockedFeatures(),
+  getItemInventory: () => gamePhases.getItemInventory(),
+  getWorldUpgrades: () => gamePhases.getWorldUpgrades(),
+  buyWorldUpgrade: (upgradeId) => gamePhases.purchaseWorldUpgrade(upgradeId),
   advance: () => gamePhases.advancePhase("manual-console"),
   setPhase: (value) => gamePhases.setPhase(value),
   resetProgress: (options) => gamePhases.resetProgress(options || {}),
 };
 
 logger.append("Sistema de fases/missoes habilitado. Use window.gamePhases para inspecionar/prototipar.");
+logger.append("Evolucao manual habilitada: use getWorldUpgrades(), getItemInventory() e buyWorldUpgrade(id).");

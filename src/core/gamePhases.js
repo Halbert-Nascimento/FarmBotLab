@@ -407,7 +407,83 @@ export const INITIAL_MISSIONS_V1 = [
       { type: "metric", key: "plants", gte: 30 },
       { type: "metric", key: "harvests", gte: 12 },
     ],
-    rewards: ["unlock:mastery.challenge", "title:Arquiteto da Automacao"],
+    rewards: [
+      "unlock:mastery.challenge",
+      "unlock:world.expansion.available",
+      "unlock:world.evolution.tier1",
+      "title:Arquiteto da Automacao",
+    ],
+  },
+];
+
+export const WORLD_UPGRADES_V1 = [
+  {
+    id: "upg.world.expansion.t1",
+    title: "Novo Mundo: Expansao Inicial",
+    description: "Prepara a fundacao para expansao futura do mapa.",
+    requiresFeatures: ["world.expansion.available"],
+    costs: {
+      capim: 8,
+      trigo: 4,
+    },
+    effects: ["future.world.expansion.t1"],
+  },
+  {
+    id: "upg.crop.growth.speed.t1",
+    title: "Crescimento Mais Rapido",
+    description: "Reserva melhoria de velocidade para crescimento das plantas.",
+    requiresFeatures: ["world.evolution.tier1"],
+    costs: {
+      capim: 10,
+      milho: 4,
+    },
+    effects: ["future.crop.growth.speed.t1"],
+  },
+  {
+    id: "upg.harvest.yield.t1",
+    title: "Colheita Mais Farta",
+    description: "Reserva melhoria para aumentar quantidade por colheita.",
+    requiresFeatures: ["world.evolution.tier1"],
+    costs: {
+      trigo: 6,
+      milho: 6,
+    },
+    effects: ["future.harvest.yield.t1"],
+  },
+  {
+    id: "upg.drone.speed.t1",
+    title: "Drone Mais Rapido",
+    description: "Reserva melhoria de velocidade de execucao do drone.",
+    requiresFeatures: ["world.evolution.tier1"],
+    costs: {
+      capim: 6,
+      arvore: 4,
+    },
+    effects: ["future.drone.speed.t1"],
+  },
+  {
+    id: "upg.debug.system.t1",
+    title: "Debug do Sistema",
+    description: "Reserva pacote de telemetria e diagnostico para scripts.",
+    requiresFeatures: ["world.evolution.tier1"],
+    costs: {
+      capim: 5,
+      trigo: 5,
+      milho: 5,
+    },
+    effects: ["future.debug.system.t1"],
+  },
+  {
+    id: "upg.dialog.system.t1",
+    title: "Caixas de Dialogo",
+    description: "Reserva camada de dialogs para guiar futuras mecancias.",
+    requiresFeatures: ["world.evolution.tier1"],
+    costs: {
+      capim: 4,
+      trigo: 4,
+      arvore: 2,
+    },
+    effects: ["future.dialog.system.t1"],
   },
 ];
 
@@ -441,7 +517,34 @@ function createInitialStats() {
     plants: 0,
     harvests: 0,
     plantsByCrop: {},
+    itemsByType: {},
   };
+}
+
+function cloneUpgrade(upgrade) {
+  return {
+    ...upgrade,
+    requiresFeatures: [...(upgrade.requiresFeatures || [])],
+    costs: {
+      ...(upgrade.costs || {}),
+    },
+    effects: [...(upgrade.effects || [])],
+  };
+}
+
+function collectMissingCosts(costs, inventory) {
+  const missing = {};
+  Object.entries(costs || {}).forEach(([itemId, qty]) => {
+    const current = inventory[itemId] || 0;
+    if (current < qty) {
+      missing[itemId] = qty - current;
+    }
+  });
+  return missing;
+}
+
+function hasAnyMissingCosts(missingCosts) {
+  return Object.keys(missingCosts || {}).length > 0;
 }
 
 function buildNodeIndex(nodes) {
@@ -532,15 +635,20 @@ export function createGamePhases({
   onPhaseChanged,
   nodes = MISSION_TREE_NODES_V1,
   missions = INITIAL_MISSIONS_V1,
+  worldUpgrades = WORLD_UPGRADES_V1,
 } = {}) {
   const nodeList = nodes.map(cloneNode);
   const missionList = missions.map(cloneMission);
+  const worldUpgradeList = worldUpgrades.map(cloneUpgrade);
+  const worldUpgradeById = new Map(worldUpgradeList.map((upgrade) => [upgrade.id, upgrade]));
   const nodeById = buildNodeIndex(nodeList);
   const missionById = buildMissionIndex(missionList);
 
   const unlockedNodeIds = new Set([nodeList[0].id]);
   const completedNodeIds = new Set();
   const completedMissionIds = new Set();
+  const unlockedRewardFeatureIds = new Set();
+  const purchasedWorldUpgradeIds = new Set();
   let stats = createInitialStats();
 
   function isNodeUnlocked(nodeId) {
@@ -601,7 +709,24 @@ export function createGamePhases({
       if (!unlockedNodeIds.has(node.id)) return;
       (node.unlocks || []).forEach((f) => features.add(f));
     });
+    unlockedRewardFeatureIds.forEach((f) => features.add(f));
     return Array.from(features);
+  }
+
+  function applyMissionRewards(mission) {
+    (mission.rewards || []).forEach((reward) => {
+      if (typeof reward !== "string") return;
+
+      if (reward.startsWith("unlock:")) {
+        const feature = reward.slice("unlock:".length).trim();
+        if (!feature) return;
+        const wasNew = !unlockedRewardFeatureIds.has(feature);
+        unlockedRewardFeatureIds.add(feature);
+        if (wasNew && typeof onLog === "function") {
+          onLog(`Recurso desbloqueado por missao: ${feature}`);
+        }
+      }
+    });
   }
 
   function evaluateMissions() {
@@ -613,6 +738,7 @@ export function createGamePhases({
       const ok = (mission.requirements || []).every((req) => evaluateRequirement(req, stats));
       if (ok) {
         completedMissionIds.add(mission.id);
+        applyMissionRewards(mission);
         completedNow.push(mission);
       }
     });
@@ -653,9 +779,82 @@ export function createGamePhases({
       const cropType = payload.cropType || "generic";
       stats.plantsByCrop[cropType] = (stats.plantsByCrop[cropType] || 0) + 1;
     }
-    if (type === "harvest") stats.harvests += 1;
+    if (type === "harvest") {
+      stats.harvests += 1;
+      const cropType = payload.cropType || "generic";
+      stats.itemsByType[cropType] = (stats.itemsByType[cropType] || 0) + 1;
+    }
 
     processProgress("event");
+  }
+
+  function getItemInventory() {
+    return Object.entries(stats.itemsByType)
+      .filter(([, qty]) => qty > 0)
+      .map(([itemId, quantity]) => ({ itemId, quantity }))
+      .sort((a, b) => a.itemId.localeCompare(b.itemId));
+  }
+
+  function getWorldUpgrades() {
+    const featureSet = new Set(getUnlockedFeatures());
+    return worldUpgradeList.map((upgrade) => {
+      const isPurchased = purchasedWorldUpgradeIds.has(upgrade.id);
+      const isUnlocked = (upgrade.requiresFeatures || []).every((feature) => featureSet.has(feature));
+      const missingCosts = collectMissingCosts(upgrade.costs, stats.itemsByType);
+      const canAfford = !hasAnyMissingCosts(missingCosts);
+
+      return {
+        ...upgrade,
+        isPurchased,
+        isUnlocked,
+        canAfford: isUnlocked && !isPurchased && canAfford,
+        missingCosts,
+      };
+    });
+  }
+
+  function purchaseWorldUpgrade(upgradeId) {
+    const upgrade = worldUpgradeById.get(upgradeId);
+    if (!upgrade) {
+      return { ok: false, reason: "invalid-upgrade" };
+    }
+
+    if (purchasedWorldUpgradeIds.has(upgradeId)) {
+      return { ok: false, reason: "already-purchased" };
+    }
+
+    const featureSet = new Set(getUnlockedFeatures());
+    const isUnlocked = (upgrade.requiresFeatures || []).every((feature) => featureSet.has(feature));
+    if (!isUnlocked) {
+      return { ok: false, reason: "locked-upgrade" };
+    }
+
+    const missingCosts = collectMissingCosts(upgrade.costs, stats.itemsByType);
+    if (hasAnyMissingCosts(missingCosts)) {
+      return {
+        ok: false,
+        reason: "insufficient-items",
+        missingCosts,
+      };
+    }
+
+    Object.entries(upgrade.costs || {}).forEach(([itemId, qty]) => {
+      stats.itemsByType[itemId] = Math.max(0, (stats.itemsByType[itemId] || 0) - qty);
+    });
+
+    purchasedWorldUpgradeIds.add(upgradeId);
+    if (typeof onLog === "function") {
+      onLog(`Melhoria comprada: ${upgrade.title}`);
+    }
+
+    emitPhaseChanged("world-upgrade");
+    return {
+      ok: true,
+      upgrade: {
+        ...upgrade,
+      },
+      inventory: getItemInventory(),
+    };
   }
 
   function getCurrentPhase() {
@@ -667,6 +866,9 @@ export function createGamePhases({
         ...stats,
         plantsByCrop: {
           ...stats.plantsByCrop,
+        },
+        itemsByType: {
+          ...stats.itemsByType,
         },
       },
       progressLabel: `${completedMissionIds.size}/${missionList.length} missoes concluidas`,
@@ -758,6 +960,8 @@ export function createGamePhases({
     stats = createInitialStats();
     completedMissionIds.clear();
     completedNodeIds.clear();
+    unlockedRewardFeatureIds.clear();
+    purchasedWorldUpgradeIds.clear();
 
     if (!keepUnlockedNodes) {
       unlockedNodeIds.clear();
@@ -776,6 +980,9 @@ export function createGamePhases({
     getCurrentPhase,
     getAllPhases,
     getUnlockedFeatures,
+    getItemInventory,
+    getWorldUpgrades,
+    purchaseWorldUpgrade,
     getMissionTree,
     getMissions,
     getActiveMissions,
