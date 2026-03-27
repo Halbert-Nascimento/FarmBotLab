@@ -203,6 +203,52 @@ function renderCurrentLearning(current, treeNodes) {
   `;
 }
 
+function renderNodeFocusDetails(node, treeNodes) {
+  if (!node) {
+    return `
+      <section class="mission-card" data-selected-node-id="">
+        <h4>Detalhes do No</h4>
+        <p class="muted">Clique em um no da arvore para ver mais informacoes.</p>
+      </section>
+    `;
+  }
+
+  const byId = new Map((treeNodes || []).map((n) => [n.id, n]));
+  const requiresLabel = (node.requires || []).length
+    ? node.requires.map((reqId) => byId.get(reqId)?.title || reqId).join(" | ")
+    : "Inicio da trilha";
+
+  return `
+    <section class="mission-card" data-selected-node-id="${node.id}">
+      <h4>${formatNodeLabel(node)}</h4>
+      <p class="muted">Trilha: ${node.branch || "geral"}</p>
+      <p class="muted">Depende de: ${requiresLabel}</p>
+      <div class="badge-row">
+        <span class="${badgeClass(node.isCompleted, node.isUnlocked)}">${statusText(node.isCompleted, node.isUnlocked)}</span>
+      </div>
+
+      <details class="lesson-box compact" open>
+        <summary>Recursos liberados neste no</summary>
+        <ul class="hint-list">
+          ${(node.unlocks || []).map((feature) => `<li>${featureLabel(feature)}</li>`).join("") || "<li>Nenhum recurso.</li>"}
+        </ul>
+      </details>
+
+      <details class="lesson-box compact" open>
+        <summary>Missoes do no</summary>
+        <ul class="hint-list">
+          ${(node.missions || [])
+            .map(
+              (mission) =>
+                `<li>${formatMissionLabel(mission)} - ${mission.isCompleted ? "concluida" : mission.isUnlocked ? "ativa" : "bloqueada"}</li>`
+            )
+            .join("") || "<li>Sem missoes.</li>"}
+        </ul>
+      </details>
+    </section>
+  `;
+}
+
 function toSafeNumber(value, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
@@ -261,12 +307,12 @@ function buildTreeLayout(treeNodes) {
   };
 }
 
-function renderTree(treeNodes) {
+function renderTreeCanvas(treeNodes) {
   const layout = buildTreeLayout(treeNodes);
 
   return `
-    <section class="tree-canvas-wrap">
-      <div class="tree-viewport">
+    <section class="tree-canvas-wrap tree-canvas-wrap-full">
+      <div class="tree-viewport" data-tree-interactive="true" tabindex="0" aria-label="Arvore de missoes interativa">
         <div class="tree-canvas" style="width:${layout.width}px; height:${layout.height}px;">
           <svg class="tree-lines" viewBox="0 0 ${layout.width} ${layout.height}" preserveAspectRatio="none">
             ${layout.edges
@@ -282,10 +328,11 @@ function renderTree(treeNodes) {
           </svg>
 
           ${layout.nodes
-              .map(
-                (node) => `
+            .map(
+              (node) => `
             <article
               class="node-card tree-node ${node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked"}"
+              data-node-id="${node.id}"
               style="left:${node._layout.x}px; top:${node._layout.y}px; width:${node._layout.width}px; min-height:${node._layout.height}px;"
             >
               <h4>${node.title}</h4>
@@ -298,11 +345,72 @@ function renderTree(treeNodes) {
               </div>
             </article>
           `
-              )
-              .join("")}
+            )
+            .join("")}
         </div>
       </div>
+    </section>
+  `;
+}
 
+function renderMissionDetails(treeNodes) {
+  return `
+    <section class="tree-mission-details">
+      <h4>Detalhes das Missoes</h4>
+      <div class="mission-list">
+        ${treeNodes
+          .flatMap((node) => (node.missions || []).map((mission) => ({ ...mission, nodeTitle: node.title, nodeId: node.id })))
+          .map(
+            (mission) => `
+          <article class="mission-card">
+            <h4>${formatMissionLabel(mission)}</h4>
+            <p class="muted">No: ${mission.nodeTitle}</p>
+            <p class="muted">${mission.objective}</p>
+            <p>${mission.description || ""}</p>
+            <div class="badge-row">
+              <span class="${badgeClass(mission.isCompleted, mission.isUnlocked)}">${statusText(
+              mission.isCompleted,
+              mission.isUnlocked
+            )}</span>
+            </div>
+            <p class="muted">${mission.progressLabel}</p>
+            ${renderMissionHelp(mission, false)}
+          </article>
+        `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFullPage(current, tree, activeMissions, unlockedFeatures) {
+  const currentNode = tree.find((node) => node.id === current.id) || tree[0] || null;
+
+  return `
+    <section class="progress-full-layout">
+      <div class="progress-full-main">
+        <h3>Arvore Completa</h3>
+        ${renderTreeCanvas(tree)}
+      </div>
+
+      <aside class="progress-full-side">
+        ${renderSummary(current, unlockedFeatures)}
+        <section id="treeNodeDetailsPanelHost">${renderNodeFocusDetails(currentNode, tree)}</section>
+        ${renderCurrentLearning(current, tree)}
+        <h3>Missoes Ativas</h3>
+        ${renderActiveMissions(activeMissions)}
+        ${renderUnlockedOverview(tree, unlockedFeatures)}
+        ${renderMissionDetails(tree)}
+      </aside>
+    </section>
+  `;
+}
+
+function renderTree(treeNodes) {
+  return `
+    <section class="tree-canvas-wrap">
+      ${renderTreeCanvas(treeNodes)}
       <section class="tree-mission-details">
         <h4>Detalhes das Missoes</h4>
         <div class="mission-list">
@@ -343,6 +451,196 @@ export function createProgressionUI({ gamePhases, onLog }) {
   const progressPage = document.querySelector("#progressPage");
   const modalContent = document.querySelector("#progressModalContent");
   const pageContent = document.querySelector("#progressPageContent");
+  let cleanupInteractiveTree = null;
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function setupInteractiveTree(treeNodes) {
+    if (typeof cleanupInteractiveTree === "function") {
+      cleanupInteractiveTree();
+      cleanupInteractiveTree = null;
+    }
+
+    const viewport = pageContent.querySelector('[data-tree-interactive="true"]');
+    if (!viewport) return;
+
+    const canvas = viewport.querySelector(".tree-canvas");
+    if (!canvas) return;
+
+    const detailsPanelHost = pageContent.querySelector("#treeNodeDetailsPanelHost");
+    const treeById = new Map((treeNodes || []).map((node) => [node.id, node]));
+    let selectedNodeId = null;
+
+    if (detailsPanelHost) {
+      const currentPanel = detailsPanelHost.querySelector("[data-selected-node-id]");
+      selectedNodeId = currentPanel && currentPanel.dataset.selectedNodeId ? currentPanel.dataset.selectedNodeId : null;
+    }
+
+    function renderSelectedNode(nodeId) {
+      if (!detailsPanelHost) return;
+      const node = treeById.get(nodeId) || null;
+      detailsPanelHost.innerHTML = renderNodeFocusDetails(node, treeNodes);
+      selectedNodeId = node ? node.id : null;
+
+      pageContent.querySelectorAll(".tree-node").forEach((el) => {
+        const isSelected = el.dataset.nodeId === selectedNodeId;
+        el.classList.toggle("is-selected", isSelected);
+      });
+    }
+
+    canvas.style.transformOrigin = "0 0";
+
+    const fitPadding = 24;
+
+    let scale = 1;
+    let minScale = 0.2;
+    const maxScale = 2.5;
+    let tx = 0;
+    let ty = 0;
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function clampTranslation() {
+      const cw = canvas.offsetWidth;
+      const ch = canvas.offsetHeight;
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+      const scaledW = cw * scale;
+      const scaledH = ch * scale;
+      const pad = 40;
+
+      if (scaledW <= vw) {
+        tx = (vw - scaledW) / 2;
+      } else {
+        tx = clamp(tx, vw - scaledW - pad, pad);
+      }
+
+      if (scaledH <= vh) {
+        ty = (vh - scaledH) / 2;
+      } else {
+        ty = clamp(ty, vh - scaledH - pad, pad);
+      }
+    }
+
+    function applyTransform() {
+      clampTranslation();
+      const rx = Math.round(tx);
+      const ry = Math.round(ty);
+      const rs = Math.round(scale * 1000) / 1000;
+      canvas.style.transform = `translate3d(${rx}px, ${ry}px, 0) scale(${rs})`;
+    }
+
+    function fitToViewport() {
+      const cw = canvas.offsetWidth;
+      const ch = canvas.offsetHeight;
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+      const fitScale = Math.min((vw - fitPadding * 2) / cw, (vh - fitPadding * 2) / ch, 1);
+      scale = fitScale;
+      minScale = Math.max(0.12, fitScale * 0.5);
+      tx = (vw - cw * scale) / 2;
+      ty = (vh - ch * scale) / 2;
+      applyTransform();
+    }
+
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+
+    requestAnimationFrame(() => {
+      fitToViewport();
+      setTimeout(() => {
+        fitToViewport();
+      }, 40);
+    });
+
+    const handleWheel = (event) => {
+      event.preventDefault();
+
+      const rect = viewport.getBoundingClientRect();
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      const zoomIntensity = 0.0016;
+      const factor = Math.exp(-event.deltaY * zoomIntensity);
+      const nextScale = clamp(scale * factor, minScale, maxScale);
+
+      if (nextScale === scale) return;
+
+      const worldX = (px - tx) / scale;
+      const worldY = (py - ty) / scale;
+      scale = nextScale;
+      tx = px - worldX * scale;
+      ty = py - worldY * scale;
+      applyTransform();
+    };
+
+    const handleMouseDown = (event) => {
+      if (event.button !== 0) return;
+      dragging = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      viewport.classList.add("is-dragging");
+    };
+
+    const handleMouseMove = (event) => {
+      if (!dragging) return;
+      const dx = event.clientX - lastX;
+      const dy = event.clientY - lastY;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      tx += dx;
+      ty += dy;
+      applyTransform();
+    };
+
+    const handleMouseUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      viewport.classList.remove("is-dragging");
+    };
+
+    const handleDoubleClick = () => {
+      fitToViewport();
+    };
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    viewport.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    viewport.addEventListener("dblclick", handleDoubleClick);
+
+    const clickableNodes = Array.from(pageContent.querySelectorAll(".tree-node[data-node-id]"));
+
+    const nodeClickHandlers = clickableNodes.map((nodeEl) => {
+      const handler = (event) => {
+        event.stopPropagation();
+        renderSelectedNode(nodeEl.dataset.nodeId);
+      };
+
+      nodeEl.addEventListener("click", handler);
+      return { nodeEl, handler };
+    });
+
+    if (selectedNodeId) {
+      renderSelectedNode(selectedNodeId);
+    } else {
+      const firstNode = treeNodes && treeNodes.length ? treeNodes[0] : null;
+      if (firstNode) renderSelectedNode(firstNode.id);
+    }
+
+    cleanupInteractiveTree = () => {
+      viewport.removeEventListener("wheel", handleWheel);
+      viewport.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      viewport.removeEventListener("dblclick", handleDoubleClick);
+      nodeClickHandlers.forEach(({ nodeEl, handler }) => {
+        nodeEl.removeEventListener("click", handler);
+      });
+    };
+  }
 
   function openModal() {
     progressModal.classList.add("is-open");
@@ -386,10 +684,10 @@ export function createProgressionUI({ gamePhases, onLog }) {
     `;
 
     pageContent.innerHTML = `
-      ${summaryHtml}
-      <h3>Arvore Completa</h3>
-      ${renderTree(tree)}
+      ${renderFullPage(current, tree, activeMissions, unlockedFeatures)}
     `;
+
+    setupInteractiveTree(tree);
   }
 
   openModalBtn.addEventListener("click", openModal);

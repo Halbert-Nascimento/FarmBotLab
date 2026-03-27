@@ -201,7 +201,7 @@ body {
   position: fixed;
   inset: 0;
   display: none;
-  padding: 16px;
+  padding: 0;
   background:
     radial-gradient(circle at 5% 8%, rgba(255, 255, 255, 0.25), transparent 34%),
     radial-gradient(circle at 88% 14%, rgba(255, 255, 255, 0.16), transparent 30%),
@@ -229,9 +229,19 @@ body {
 }
 
 .progress-page-panel {
-  width: min(1200px, 100%);
-  margin: 0 auto;
-  height: calc(100vh - 32px);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  height: 100vh;
+  border-radius: 0;
+}
+
+.progress-page-panel .progress-content {
+  overflow: hidden;
+}
+
+.progress-modal .progress-content {
+  overflow: auto;
 }
 
 .progress-head {
@@ -349,9 +359,17 @@ body {
   gap: 12px;
 }
 
+.tree-canvas-wrap-full {
+  min-height: 0;
+  height: 100%;
+}
+
 .tree-viewport {
-  overflow: auto;
-  max-height: 62vh;
+  overflow: hidden;
+  max-height: none;
+  height: 100%;
+  cursor: grab;
+  user-select: none;
   border: 1px solid rgba(61, 54, 44, 0.2);
   border-radius: 12px;
   background:
@@ -360,9 +378,15 @@ body {
     linear-gradient(165deg, #698191, #617887);
 }
 
+.tree-viewport.is-dragging {
+  cursor: grabbing;
+}
+
 .tree-canvas {
   position: relative;
   overflow: visible;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
 
 .tree-lines {
@@ -391,6 +415,18 @@ body {
   margin: 0;
   border-width: 2px;
   box-shadow: 0 8px 18px rgba(8, 8, 8, 0.25);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, outline-color 160ms ease;
+}
+
+.tree-node:hover {
+  transform: translateY(-2px);
+}
+
+.tree-node.is-selected {
+  outline: 3px solid rgba(255, 255, 255, 0.78);
+  outline-offset: 1px;
+  box-shadow: 0 14px 26px rgba(8, 8, 8, 0.38);
 }
 
 .tree-node h4 {
@@ -492,9 +528,53 @@ body {
   margin: 0 0 10px;
 }
 
+.progress-full-layout {
+  display: grid;
+  grid-template-columns: minmax(760px, 1fr) minmax(330px, 430px);
+  gap: 14px;
+  height: 100%;
+}
+
+.progress-full-main {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  min-height: 0;
+}
+
+.progress-full-main h3 {
+  margin: 0;
+}
+
+.progress-full-side {
+  border: 1px solid rgba(61, 54, 44, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 12px;
+  overflow: auto;
+  min-height: 0;
+}
+
 @media (max-width: 980px) {
   .tree-viewport {
     max-height: 54vh;
+  }
+
+  .progress-page-panel .progress-content {
+    overflow: auto;
+  }
+
+  .progress-full-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .progress-full-main {
+    min-height: 60vh;
+  }
+
+  .progress-full-side {
+    max-height: 50vh;
   }
 }
 
