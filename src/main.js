@@ -4,6 +4,7 @@ import { createGamePhases } from "./core/gamePhases.js";
 import { createThreeFarmView } from "./render/threeFarmView.js";
 import { createEditor } from "./ui/editor.js";
 import { createLogger } from "./ui/logger.js";
+import { createProgressionUI } from "./ui/progressionUI.js";
 
 const DEBUG_ALERTS = true;
 const GRID_SIZE = 8;
@@ -42,11 +43,22 @@ function debugAlert(message) {
 
 const logger = createLogger(logEl);
 
+let progressionUI = null;
+
 const gamePhases = createGamePhases({
   onLog: logger.append,
   onPhaseChanged: ({ phase }) => {
-    logger.append(`Fase atual: ${phase.title} (${phase.id})`);
+    logger.append(`No atual: ${phase.title} (${phase.id})`);
+    logger.append(`Progresso geral: ${phase.progressLabel}`);
+    if (progressionUI) {
+      progressionUI.render();
+    }
   },
+});
+
+progressionUI = createProgressionUI({
+  gamePhases,
+  onLog: logger.append,
 });
 
 const editor = createEditor({
@@ -81,9 +93,9 @@ async function performAction(action) {
   const actionType = command.type;
 
   if (actionType === "right") {
-    gamePhases.recordEvent("move");
     const result = world.moveBy(1, 0);
     if (result.moved) {
+      gamePhases.recordEvent("move");
       await view.animateMove(result.from, result.to);
       logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
     } else {
@@ -93,9 +105,9 @@ async function performAction(action) {
   }
 
   if (actionType === "left") {
-    gamePhases.recordEvent("move");
     const result = world.moveBy(-1, 0);
     if (result.moved) {
+      gamePhases.recordEvent("move");
       await view.animateMove(result.from, result.to);
       logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
     } else {
@@ -105,9 +117,9 @@ async function performAction(action) {
   }
 
   if (actionType === "up") {
-    gamePhases.recordEvent("move");
     const result = world.moveBy(0, -1);
     if (result.moved) {
+      gamePhases.recordEvent("move");
       await view.animateMove(result.from, result.to);
       logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
     } else {
@@ -117,9 +129,9 @@ async function performAction(action) {
   }
 
   if (actionType === "down") {
-    gamePhases.recordEvent("move");
     const result = world.moveBy(0, 1);
     if (result.moved) {
+      gamePhases.recordEvent("move");
       await view.animateMove(result.from, result.to);
       logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
     } else {
@@ -129,18 +141,20 @@ async function performAction(action) {
   }
 
   if (actionType === "plant") {
-    gamePhases.recordEvent("plant");
     const cropArg = command.args && command.args.length > 0 ? command.args[0] : "generic";
     const cropType = typeof cropArg === "string" && cropArg.trim() ? cropArg.trim().toLowerCase() : "generic";
     const result = world.plant(cropType);
+    gamePhases.recordEvent("plant", { cropType: result.crop.type });
     view.setCrop(result.x, result.y, result.crop.type);
     logger.append(`Plantou ${result.crop.type} em (${result.x}, ${result.y})`);
     return;
   }
 
   if (actionType === "harvest") {
-    gamePhases.recordEvent("harvest");
     const result = world.harvest();
+    if (result.wasPlanted) {
+      gamePhases.recordEvent("harvest");
+    }
     view.setCrop(result.x, result.y, null);
     logger.append(`Colheu em (${result.x}, ${result.y})`);
   }
@@ -210,14 +224,18 @@ window.addEventListener("resize", () => {
 setupDebugHooks();
 resetWorld();
 view.resize();
+progressionUI.render();
 
 window.gamePhases = {
   getCurrent: () => gamePhases.getCurrentPhase(),
   getAll: () => gamePhases.getAllPhases(),
+  getTree: () => gamePhases.getMissionTree(),
+  getMissions: () => gamePhases.getMissions(),
+  getActiveMissions: (limit) => gamePhases.getActiveMissions(limit),
   getUnlockedFeatures: () => gamePhases.getUnlockedFeatures(),
   advance: () => gamePhases.advancePhase("manual-console"),
   setPhase: (value) => gamePhases.setPhase(value),
   resetProgress: (options) => gamePhases.resetProgress(options || {}),
 };
 
-logger.append("Sistema de fases habilitado. Use window.gamePhases para inspecionar/prototipar.");
+logger.append("Sistema de fases/missoes habilitado. Use window.gamePhases para inspecionar/prototipar.");
