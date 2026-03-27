@@ -48,7 +48,7 @@ let progressionUI = null;
 const gamePhases = createGamePhases({
   onLog: logger.append,
   onPhaseChanged: ({ phase }) => {
-    logger.append(`No atual: ${phase.title} (${phase.id})`);
+    logger.append(`No atual: ${phase.title}`);
     logger.append(`Progresso geral: ${phase.progressLabel}`);
     if (progressionUI) {
       progressionUI.render();

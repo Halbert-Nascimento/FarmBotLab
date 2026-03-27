@@ -10,6 +10,26 @@ function statusText(isCompleted, isUnlocked) {
   return "Bloqueado";
 }
 
+function extractOrdinal(id, prefix) {
+  if (!id || typeof id !== "string") return null;
+  const rx = new RegExp(`^${prefix}(\\d+)`);
+  const match = id.match(rx);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
+function formatNodeLabel(node) {
+  const ordinal = extractOrdinal(node.id, "n");
+  if (!ordinal) return node.title;
+  return `No ${ordinal} - ${node.title}`;
+}
+
+function formatMissionLabel(mission) {
+  const ordinal = extractOrdinal(mission.id, "m");
+  if (!ordinal) return mission.title;
+  return `Missao ${ordinal} - ${mission.title}`;
+}
+
 function renderSummary(current, unlockedFeatures) {
   return `
     <section class="progress-summary">
@@ -44,7 +64,7 @@ function renderActiveMissions(activeMissions) {
         .map(
           (mission) => `
         <article class="mission-card">
-          <h4>${mission.title}</h4>
+          <h4>${formatMissionLabel(mission)}</h4>
           <p class="muted">${mission.objective}</p>
           <p>${mission.description || ""}</p>
           <div class="badge-row">
@@ -133,7 +153,19 @@ function renderUnlockedOverview(treeNodes, unlockedFeatures) {
       <details class="lesson-box compact" open>
         <summary>Nos desbloqueados</summary>
         <ul class="hint-list">
-          ${unlockedNodes.map((node) => `<li>${node.title} (${node.id})</li>`).join("")}
+          ${unlockedNodes.map((node) => `<li>${formatNodeLabel(node)}</li>`).join("")}
+        </ul>
+      </details>
+
+      <details class="lesson-box compact" open>
+        <summary>Missoes desbloqueadas</summary>
+        <ul class="hint-list">
+          ${unlockedMissions
+            .map(
+              (mission) =>
+                `<li>${formatMissionLabel(mission)} (${mission.isCompleted ? "concluida" : "ativa"})</li>`
+            )
+            .join("") || "<li>Nenhuma missao desbloqueada ainda.</li>"}
         </ul>
       </details>
 
@@ -257,7 +289,7 @@ function renderTree(treeNodes) {
               style="left:${node._layout.x}px; top:${node._layout.y}px; width:${node._layout.width}px; min-height:${node._layout.height}px;"
             >
               <h4>${node.title}</h4>
-              <p class="muted node-meta">${node.id}</p>
+              <p class="muted node-meta">${formatNodeLabel(node)}</p>
               <div class="badge-row">
                 <span class="${badgeClass(node.isCompleted, node.isUnlocked)}">${statusText(node.isCompleted, node.isUnlocked)}</span>
                 <span class="badge unlocked">${node.completedMissions || node.missions.filter((m) => m.isCompleted).length}/${
@@ -279,8 +311,8 @@ function renderTree(treeNodes) {
             .map(
               (mission) => `
             <article class="mission-card">
-              <h4>${mission.id} - ${mission.title}</h4>
-              <p class="muted">No: ${mission.nodeTitle} (${mission.nodeId})</p>
+              <h4>${formatMissionLabel(mission)}</h4>
+              <p class="muted">No: ${mission.nodeTitle}</p>
               <p class="muted">${mission.objective}</p>
               <p>${mission.description || ""}</p>
               <div class="badge-row">

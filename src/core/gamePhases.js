@@ -581,7 +581,7 @@ export function createGamePhases({
         unlockedNodeIds.add(node.id);
         changed = true;
         if (typeof onLog === "function") {
-          onLog(`No desbloqueado: ${node.title} (${node.id}).`);
+          onLog(`No desbloqueado: ${node.title}.`);
           onLog(`Features liberadas: ${(node.unlocks || []).join(", ")}`);
         }
       }
@@ -727,7 +727,7 @@ export function createGamePhases({
 
     unlockedNodeIds.add(next.id);
     if (typeof onLog === "function") {
-      onLog(`No liberado manualmente: ${next.title} (${next.id}).`);
+      onLog(`No liberado manualmente: ${next.title}.`);
     }
 
     emitPhaseChanged(reason);
