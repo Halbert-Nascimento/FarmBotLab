@@ -532,6 +532,8 @@ function createBotAvatar() {
 export function createThreeFarmView({
   sceneRoot,
   gridSize = 8,
+  gridWidth,
+  gridHeight,
   tileSize = 1,
   initialZoom = 1.2,
   avatarType = "drone",
@@ -539,6 +541,8 @@ export function createThreeFarmView({
   onDebugError,
   onLog,
 }) {
+  let currentGridWidth = Number.isInteger(gridWidth) ? gridWidth : gridSize;
+  let currentGridHeight = Number.isInteger(gridHeight) ? gridHeight : gridSize;
   const tiles = new Map();
   const cropModels = new Map();  // Armazena modelos 3D das plantas: key = "x:y", value = { group, cropType, plantedTimeMs }
   // Configuração viva de crescimento (pode ser alterada em runtime via setCropGrowthSettings).
@@ -620,22 +624,39 @@ export function createThreeFarmView({
     opacity: 0.45,
   });
 
-  for (let y = 0; y < gridSize; y += 1) {
-    for (let x = 0; x < gridSize; x += 1) {
-      const tile = new THREE.Mesh(tileGeometry, createTileMaterialWithSurface("loam", null, DEFAULT_SURFACE_STATE));
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(tileGeometry), tileEdgeMaterial);
-      tile.add(edges);
-      const wp = gridToWorld(x, y, gridSize);
-      tile.position.set(wp.x, -0.1, wp.z);
-      tile.receiveShadow = true;
-      tile.castShadow = false;
-      tile.userData.soilType = "loam";
-      tile.userData.cropType = null;
-      tile.userData.surfaceState = DEFAULT_SURFACE_STATE;
-      farmGroup.add(tile);
-      tiles.set(tileKey(x, y), tile);
+  function rebuildTileGrid(nextWidth, nextHeight) {
+    currentGridWidth = Math.max(1, Number(nextWidth) || currentGridWidth);
+    currentGridHeight = Math.max(1, Number(nextHeight) || currentGridHeight);
+
+    for (const tile of tiles.values()) {
+      farmGroup.remove(tile);
+    }
+    tiles.clear();
+
+    for (const cropData of cropModels.values()) {
+      cropsGroup.remove(cropData.group);
+    }
+    cropModels.clear();
+
+    for (let y = 0; y < currentGridHeight; y += 1) {
+      for (let x = 0; x < currentGridWidth; x += 1) {
+        const tile = new THREE.Mesh(tileGeometry, createTileMaterialWithSurface("loam", null, DEFAULT_SURFACE_STATE));
+        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(tileGeometry), tileEdgeMaterial);
+        tile.add(edges);
+        const wp = gridToWorld(x, y, currentGridWidth, currentGridHeight);
+        tile.position.set(wp.x, -0.1, wp.z);
+        tile.receiveShadow = true;
+        tile.castShadow = false;
+        tile.userData.soilType = "loam";
+        tile.userData.cropType = null;
+        tile.userData.surfaceState = DEFAULT_SURFACE_STATE;
+        farmGroup.add(tile);
+        tiles.set(tileKey(x, y), tile);
+      }
     }
   }
+
+  rebuildTileGrid(currentGridWidth, currentGridHeight);
 
 //   const ground = new THREE.Mesh(
 //     new THREE.CircleGeometry(10, 64),
@@ -702,7 +723,7 @@ export function createThreeFarmView({
       // tile.userData.surfaceState permanece como estava
       
       // Calcula posição no mundo
-      const wp = gridToWorld(x, y, gridSize);
+      const wp = gridToWorld(x, y, currentGridWidth, currentGridHeight);
       
       // Cria modelo 3D procedural
       const cropGroup = createCropModel(
@@ -758,7 +779,7 @@ export function createThreeFarmView({
 
   function syncBotPosition(position) {
     lastKnownPosition = { x: position.x, y: position.y };
-    const wp = gridToWorld(position.x, position.y, gridSize);
+    const wp = gridToWorld(position.x, position.y, currentGridWidth, currentGridHeight);
     avatar.group.position.x = wp.x;
     avatar.group.position.z = wp.z;
     avatar.group.position.y = avatar.heightOffset;
@@ -770,8 +791,8 @@ export function createThreeFarmView({
       return Promise.resolve();
     }
 
-    const fromWorld = gridToWorld(from.x, from.y, gridSize);
-    const toWorld = gridToWorld(to.x, to.y, gridSize);
+    const fromWorld = gridToWorld(from.x, from.y, currentGridWidth, currentGridHeight);
+    const toWorld = gridToWorld(to.x, to.y, currentGridWidth, currentGridHeight);
 
     return new Promise((resolve) => {
       currentAnimation = {
@@ -804,6 +825,11 @@ export function createThreeFarmView({
   }
 
   function reset(snapshot) {
+    const dims = snapshot && snapshot.dimensions ? snapshot.dimensions : null;
+    if (dims && Number.isFinite(dims.width) && Number.isFinite(dims.height)) {
+      rebuildTileGrid(dims.width, dims.height);
+    }
+
     for (const tile of tiles.values()) {
       tile.userData.soilType = "loam";
       tile.userData.cropType = null;
@@ -826,6 +852,22 @@ export function createThreeFarmView({
     });
 
     syncBotPosition(snapshot.position);
+  }
+
+  function setGridDimensions(width, height, snapshot = null) {
+    if (snapshot) {
+      reset({
+        ...snapshot,
+        dimensions: {
+          width,
+          height,
+        },
+      });
+      return;
+    }
+
+    rebuildTileGrid(width, height);
+    syncBotPosition(lastKnownPosition);
   }
 
   function render(now) {
@@ -942,6 +984,7 @@ export function createThreeFarmView({
     setCrop,
     setSoilType,
     setSoilSurface,
+    setGridDimensions,
     setAvatarType,
     syncBotPosition,
     animateMove,
@@ -953,9 +996,9 @@ export function createThreeFarmView({
   };
 }
 
-function gridToWorld(x, y, gridSize) {
+function gridToWorld(x, y, gridWidth, gridHeight) {
   return {
-    x: x - gridSize / 2 + 0.5,
-    z: y - gridSize / 2 + 0.5,
+    x: x - gridWidth / 2 + 0.5,
+    z: y - gridHeight / 2 + 0.5,
   };
 }

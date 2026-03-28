@@ -416,26 +416,68 @@ export const INITIAL_MISSIONS_V1 = [
   },
 ];
 
+export const WORLD_SIZE_LADDER_V1 = [
+  { width: 1, height: 2 },
+  { width: 2, height: 2 },
+  { width: 3, height: 3 },
+  { width: 4, height: 4 },
+  { width: 6, height: 6 },
+  { width: 9, height: 9 },
+  { width: 12, height: 12 },
+  { width: 16, height: 16 },
+  { width: 20, height: 20 },
+  { width: 24, height: 24 },
+  { width: 28, height: 28 },
+  { width: 32, height: 32 },
+];
+
+function buildExpansionCosts(level) {
+  return {
+    capim: 3 + level * 2,
+    trigo: Math.max(0, level - 1) * 2,
+    milho: Math.max(0, level - 2) * 2,
+    arvore: Math.max(0, level - 3),
+  };
+}
+
+function toUpgradeId(width, height) {
+  return `upg.world.size.${width}x${height}`;
+}
+
+function buildWorldExpansionUpgrades() {
+  return WORLD_SIZE_LADDER_V1.slice(1).map((size, index) => {
+    const level = index + 1;
+    const prev = WORLD_SIZE_LADDER_V1[index];
+    const previousUpgradeId = index === 0 ? null : toUpgradeId(prev.width, prev.height);
+    const isEarlyTestLevel = level <= 3;
+    return {
+      id: toUpgradeId(size.width, size.height),
+      title: `Expandir Mundo para ${size.width}x${size.height}`,
+      description: `Expande o mapa do mundo de ${prev.width}x${prev.height} para ${size.width}x${size.height}.`,
+      requiresFeatures: isEarlyTestLevel ? [] : ["world.expansion.available"],
+      requiresUpgrades: previousUpgradeId ? [previousUpgradeId] : [],
+      unlockRules: isEarlyTestLevel ? [{ type: "metric", key: "moves", gte: 1 }] : [],
+      costs: buildExpansionCosts(level),
+      worldSize: {
+        width: size.width,
+        height: size.height,
+      },
+      effects: [`world.size.${size.width}x${size.height}`],
+    };
+  });
+}
+
 export const WORLD_UPGRADES_V1 = [
-  {
-    id: "upg.world.expansion.t1",
-    title: "Novo Mundo: Expansao Inicial",
-    description: "Prepara a fundacao para expansao futura do mapa.",
-    requiresFeatures: ["world.expansion.available"],
-    costs: {
-      capim: 8,
-      trigo: 4,
-    },
-    effects: ["future.world.expansion.t1"],
-  },
+  ...buildWorldExpansionUpgrades(),
   {
     id: "upg.crop.growth.speed.t1",
     title: "Crescimento Mais Rapido",
     description: "Reserva melhoria de velocidade para crescimento das plantas.",
     requiresFeatures: ["world.evolution.tier1"],
+    requiresUpgrades: [],
     costs: {
-      capim: 10,
-      milho: 4,
+      capim: 18,
+      milho: 8,
     },
     effects: ["future.crop.growth.speed.t1"],
   },
@@ -444,9 +486,10 @@ export const WORLD_UPGRADES_V1 = [
     title: "Colheita Mais Farta",
     description: "Reserva melhoria para aumentar quantidade por colheita.",
     requiresFeatures: ["world.evolution.tier1"],
+    requiresUpgrades: [],
     costs: {
-      trigo: 6,
-      milho: 6,
+      trigo: 10,
+      milho: 10,
     },
     effects: ["future.harvest.yield.t1"],
   },
@@ -455,9 +498,10 @@ export const WORLD_UPGRADES_V1 = [
     title: "Drone Mais Rapido",
     description: "Reserva melhoria de velocidade de execucao do drone.",
     requiresFeatures: ["world.evolution.tier1"],
+    requiresUpgrades: [],
     costs: {
-      capim: 6,
-      arvore: 4,
+      capim: 12,
+      arvore: 8,
     },
     effects: ["future.drone.speed.t1"],
   },
@@ -466,22 +510,24 @@ export const WORLD_UPGRADES_V1 = [
     title: "Debug do Sistema",
     description: "Reserva pacote de telemetria e diagnostico para scripts.",
     requiresFeatures: ["world.evolution.tier1"],
+    requiresUpgrades: [],
     costs: {
-      capim: 5,
-      trigo: 5,
-      milho: 5,
+      capim: 8,
+      trigo: 8,
+      milho: 8,
     },
     effects: ["future.debug.system.t1"],
   },
   {
     id: "upg.dialog.system.t1",
     title: "Caixas de Dialogo",
-    description: "Reserva camada de dialogs para guiar futuras mecancias.",
+    description: "Reserva camada de dialogs para guiar futuras mecanicas.",
     requiresFeatures: ["world.evolution.tier1"],
+    requiresUpgrades: [],
     costs: {
-      capim: 4,
-      trigo: 4,
-      arvore: 2,
+      capim: 8,
+      trigo: 8,
+      arvore: 4,
     },
     effects: ["future.dialog.system.t1"],
   },
@@ -525,9 +571,17 @@ function cloneUpgrade(upgrade) {
   return {
     ...upgrade,
     requiresFeatures: [...(upgrade.requiresFeatures || [])],
+    requiresUpgrades: [...(upgrade.requiresUpgrades || [])],
+    unlockRules: [...(upgrade.unlockRules || [])],
     costs: {
       ...(upgrade.costs || {}),
     },
+    worldSize: upgrade.worldSize
+      ? {
+          width: upgrade.worldSize.width,
+          height: upgrade.worldSize.height,
+        }
+      : null,
     effects: [...(upgrade.effects || [])],
   };
 }
@@ -545,6 +599,10 @@ function collectMissingCosts(costs, inventory) {
 
 function hasAnyMissingCosts(missingCosts) {
   return Object.keys(missingCosts || {}).length > 0;
+}
+
+function evaluateUpgradeUnlockRules(unlockRules, stats) {
+  return (unlockRules || []).every((rule) => evaluateRequirement(rule, stats));
 }
 
 function buildNodeIndex(nodes) {
@@ -649,6 +707,10 @@ export function createGamePhases({
   const completedMissionIds = new Set();
   const unlockedRewardFeatureIds = new Set();
   const purchasedWorldUpgradeIds = new Set();
+  let currentWorldSize = {
+    width: WORLD_SIZE_LADDER_V1[0].width,
+    height: WORLD_SIZE_LADDER_V1[0].height,
+  };
   let stats = createInitialStats();
 
   function isNodeUnlocked(nodeId) {
@@ -800,17 +862,35 @@ export function createGamePhases({
     return worldUpgradeList.map((upgrade) => {
       const isPurchased = purchasedWorldUpgradeIds.has(upgrade.id);
       const isUnlocked = (upgrade.requiresFeatures || []).every((feature) => featureSet.has(feature));
+      const requirementsMet = (upgrade.requiresUpgrades || []).every((requiredId) =>
+        purchasedWorldUpgradeIds.has(requiredId)
+      );
+      const rulesMet = evaluateUpgradeUnlockRules(upgrade.unlockRules, stats);
       const missingCosts = collectMissingCosts(upgrade.costs, stats.itemsByType);
       const canAfford = !hasAnyMissingCosts(missingCosts);
 
       return {
         ...upgrade,
         isPurchased,
-        isUnlocked,
-        canAfford: isUnlocked && !isPurchased && canAfford,
+        isUnlocked: isUnlocked && requirementsMet && rulesMet,
+        canAfford: isUnlocked && requirementsMet && rulesMet && !isPurchased && canAfford,
         missingCosts,
       };
     });
+  }
+
+  function getWorldState() {
+    const index = WORLD_SIZE_LADDER_V1.findIndex(
+      (entry) => entry.width === currentWorldSize.width && entry.height === currentWorldSize.height
+    );
+
+    return {
+      width: currentWorldSize.width,
+      height: currentWorldSize.height,
+      levelIndex: index >= 0 ? index : 0,
+      maxLevelIndex: WORLD_SIZE_LADDER_V1.length - 1,
+      purchasedUpgradeIds: Array.from(purchasedWorldUpgradeIds),
+    };
   }
 
   function purchaseWorldUpgrade(upgradeId) {
@@ -829,6 +909,18 @@ export function createGamePhases({
       return { ok: false, reason: "locked-upgrade" };
     }
 
+    const requirementsMet = (upgrade.requiresUpgrades || []).every((requiredId) =>
+      purchasedWorldUpgradeIds.has(requiredId)
+    );
+    if (!requirementsMet) {
+      return { ok: false, reason: "missing-upgrade-prereq" };
+    }
+
+    const rulesMet = evaluateUpgradeUnlockRules(upgrade.unlockRules, stats);
+    if (!rulesMet) {
+      return { ok: false, reason: "missing-upgrade-rules" };
+    }
+
     const missingCosts = collectMissingCosts(upgrade.costs, stats.itemsByType);
     if (hasAnyMissingCosts(missingCosts)) {
       return {
@@ -843,6 +935,17 @@ export function createGamePhases({
     });
 
     purchasedWorldUpgradeIds.add(upgradeId);
+
+    if (upgrade.worldSize && Number.isFinite(upgrade.worldSize.width) && Number.isFinite(upgrade.worldSize.height)) {
+      currentWorldSize = {
+        width: upgrade.worldSize.width,
+        height: upgrade.worldSize.height,
+      };
+      if (typeof onLog === "function") {
+        onLog(`Novo tamanho de mundo ativo: ${currentWorldSize.width}x${currentWorldSize.height}`);
+      }
+    }
+
     if (typeof onLog === "function") {
       onLog(`Melhoria comprada: ${upgrade.title}`);
     }
@@ -853,6 +956,7 @@ export function createGamePhases({
       upgrade: {
         ...upgrade,
       },
+      worldState: getWorldState(),
       inventory: getItemInventory(),
     };
   }
@@ -962,6 +1066,10 @@ export function createGamePhases({
     completedNodeIds.clear();
     unlockedRewardFeatureIds.clear();
     purchasedWorldUpgradeIds.clear();
+    currentWorldSize = {
+      width: WORLD_SIZE_LADDER_V1[0].width,
+      height: WORLD_SIZE_LADDER_V1[0].height,
+    };
 
     if (!keepUnlockedNodes) {
       unlockedNodeIds.clear();
@@ -981,6 +1089,7 @@ export function createGamePhases({
     getAllPhases,
     getUnlockedFeatures,
     getItemInventory,
+    getWorldState,
     getWorldUpgrades,
     purchaseWorldUpgrade,
     getMissionTree,

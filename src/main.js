@@ -7,7 +7,6 @@ import { createLogger } from "./ui/logger.js";
 import { createProgressionUI } from "./ui/progressionUI.js";
 
 const DEBUG_ALERTS = true;
-const GRID_SIZE = 8;
 
 // Configuração central de crescimento (ajustável sem alterar lógica interna da renderização).
 const CROP_GROWTH_SETTINGS = {
@@ -56,6 +55,8 @@ const gamePhases = createGamePhases({
   },
 });
 
+const initialWorldState = gamePhases.getWorldState();
+
 progressionUI = createProgressionUI({
   gamePhases,
   onLog: logger.append,
@@ -68,7 +69,8 @@ const editor = createEditor({
 });
 
 const world = createFarmWorld({
-  gridSize: GRID_SIZE,
+  gridWidth: initialWorldState.width,
+  gridHeight: initialWorldState.height,
   defaultSoilType: "loam",
   defaultSoilLevels: {
     water: 45,
@@ -79,7 +81,8 @@ const world = createFarmWorld({
 
 const view = createThreeFarmView({
   sceneRoot,
-  gridSize: GRID_SIZE,
+  gridWidth: initialWorldState.width,
+  gridHeight: initialWorldState.height,
   avatarType: avatarSelect ? avatarSelect.value : "drone",
   initialZoom: Number(zoomSlider.value),
   // Envia configurações de crescimento para o sistema visual.
@@ -168,6 +171,20 @@ const runner = createProgramRunner({
   onDebugError: debugAlert,
 });
 
+function applyWorldDimensions(width, height, reason = "expansao") {
+  const result = world.setGridDimensions(width, height);
+  if (!result.ok) return result;
+
+  const snapshot = world.getSnapshot();
+  view.setGridDimensions(width, height, snapshot);
+
+  logger.append(`Mundo atualizado (${reason}): ${width}x${height}`);
+  return {
+    ok: true,
+    dimensions: result.dimensions,
+  };
+}
+
 function resetWorld() {
   runner.reset();
   world.reset();
@@ -235,11 +252,28 @@ window.gamePhases = {
   getActiveMissions: (limit) => gamePhases.getActiveMissions(limit),
   getUnlockedFeatures: () => gamePhases.getUnlockedFeatures(),
   getItemInventory: () => gamePhases.getItemInventory(),
+  getWorldState: () => gamePhases.getWorldState(),
   getWorldUpgrades: () => gamePhases.getWorldUpgrades(),
-  buyWorldUpgrade: (upgradeId) => gamePhases.purchaseWorldUpgrade(upgradeId),
+  buyWorldUpgrade: (upgradeId) => {
+    const purchase = gamePhases.purchaseWorldUpgrade(upgradeId);
+    if (!purchase.ok) {
+      return purchase;
+    }
+
+    const worldState = purchase.worldState || null;
+    if (worldState && Number.isFinite(worldState.width) && Number.isFinite(worldState.height)) {
+      applyWorldDimensions(worldState.width, worldState.height, "upgrade");
+    }
+
+    return purchase;
+  },
   advance: () => gamePhases.advancePhase("manual-console"),
   setPhase: (value) => gamePhases.setPhase(value),
-  resetProgress: (options) => gamePhases.resetProgress(options || {}),
+  resetProgress: (options) => {
+    gamePhases.resetProgress(options || {});
+    const state = gamePhases.getWorldState();
+    applyWorldDimensions(state.width, state.height, "reset-progress");
+  },
 };
 
 logger.append("Sistema de fases/missoes habilitado. Use window.gamePhases para inspecionar/prototipar.");

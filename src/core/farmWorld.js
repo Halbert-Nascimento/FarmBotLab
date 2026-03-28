@@ -40,9 +40,14 @@ function cloneSoil(soil) {
 
 export function createFarmWorld({
   gridSize = 8,
+  gridWidth,
+  gridHeight,
   defaultSoilType = "loam",
   defaultSoilLevels = {},
 } = {}) {
+  let width = Number.isInteger(gridWidth) ? gridWidth : gridSize;
+  let height = Number.isInteger(gridHeight) ? gridHeight : gridSize;
+
   const state = {
     x: 0,
     y: 0,
@@ -51,23 +56,49 @@ export function createFarmWorld({
     turn: 0,
   };
 
-  for (let y = 0; y < gridSize; y += 1) {
-    for (let x = 0; x < gridSize; x += 1) {
-      const key = tileKey(x, y);
-      state.soils.set(key, {
-        type: defaultSoilType,
-        levels: buildDefaultSoilState(defaultSoilLevels),
-        extra: {},
-      });
+  function fillMissingSoils() {
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const key = tileKey(x, y);
+        if (state.soils.has(key)) continue;
+
+        state.soils.set(key, {
+          type: defaultSoilType,
+          levels: buildDefaultSoilState(defaultSoilLevels),
+          extra: {},
+        });
+      }
     }
   }
 
-  function clampToGrid(value) {
-    return Math.max(0, Math.min(gridSize - 1, value));
+  function pruneOutsideGrid() {
+    for (const key of state.crops.keys()) {
+      const pos = parseTileKey(key);
+      if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) {
+        state.crops.delete(key);
+      }
+    }
+
+    for (const key of state.soils.keys()) {
+      const pos = parseTileKey(key);
+      if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) {
+        state.soils.delete(key);
+      }
+    }
+  }
+
+  fillMissingSoils();
+
+  function clampToGridX(value) {
+    return Math.max(0, Math.min(width - 1, value));
+  }
+
+  function clampToGridY(value) {
+    return Math.max(0, Math.min(height - 1, value));
   }
 
   function isInsideGrid(x, y) {
-    return x >= 0 && x < gridSize && y >= 0 && y < gridSize;
+    return x >= 0 && x < width && y >= 0 && y < height;
   }
 
   function reset() {
@@ -75,6 +106,9 @@ export function createFarmWorld({
     state.y = 0;
     state.crops.clear();
     state.turn = 0;
+
+    state.soils.clear();
+    fillMissingSoils();
 
     for (const soil of state.soils.values()) {
       soil.type = defaultSoilType;
@@ -85,8 +119,8 @@ export function createFarmWorld({
 
   function moveBy(dx, dy) {
     const from = { x: state.x, y: state.y };
-    const targetX = clampToGrid(state.x + dx);
-    const targetY = clampToGrid(state.y + dy);
+    const targetX = clampToGridX(state.x + dx);
+    const targetY = clampToGridY(state.y + dy);
     const moved = targetX !== state.x || targetY !== state.y;
 
     if (!moved) {
@@ -191,8 +225,38 @@ export function createFarmWorld({
     return state.turn;
   }
 
+  function getGridDimensions() {
+    return {
+      width,
+      height,
+    };
+  }
+
+  function setGridDimensions(nextWidth, nextHeight) {
+    const safeWidth = Math.max(1, Number(nextWidth) || width);
+    const safeHeight = Math.max(1, Number(nextHeight) || height);
+
+    width = safeWidth;
+    height = safeHeight;
+
+    pruneOutsideGrid();
+    fillMissingSoils();
+
+    state.x = clampToGridX(state.x);
+    state.y = clampToGridY(state.y);
+
+    return {
+      ok: true,
+      dimensions: getGridDimensions(),
+    };
+  }
+
   function getSnapshot() {
     return {
+      dimensions: {
+        width,
+        height,
+      },
       position: { x: state.x, y: state.y },
       turn: state.turn,
       crops: Array.from(state.crops.entries()).map(([key, crop]) => ({
@@ -207,8 +271,18 @@ export function createFarmWorld({
   }
 
   return {
-    gridSize,
+    get gridSize() {
+      return width;
+    },
+    get gridWidth() {
+      return width;
+    },
+    get gridHeight() {
+      return height;
+    },
     reset,
+    getGridDimensions,
+    setGridDimensions,
     moveBy,
     getSoilAt,
     updateSoilAt,
