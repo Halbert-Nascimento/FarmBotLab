@@ -34,6 +34,50 @@ const resetBtn = document.querySelector("#resetBtn");
 const zoomSlider = document.querySelector("#zoomSlider");
 const avatarSelect = document.querySelector("#avatarSelect");
 const sceneRoot = document.querySelector("#scene");
+const inventoryHudEl = document.querySelector("#inventoryHud");
+const scenePanelEl = document.querySelector(".scene-panel");
+
+const INVENTORY_ITEM_ORDER = [
+  "capim",
+  "trigo",
+  "arvore",
+  "girasol",
+  "morango",
+  "milho",
+];
+
+const INVENTORY_ITEM_LABELS = {
+  capim: "Capim",
+  trigo: "Trigo",
+  arvore: "Arvore",
+  girasol: "Girassol",
+  milho: "Milho",
+  morango: "Morango",
+};
+
+const INVENTORY_ITEM_ICONS = {
+  capim: "🌱",
+  trigo: "🌾",
+  arvore: "🌳",
+  girasol: "🌻",
+  morango: "🍓",
+  milho: "🌽",
+};
+
+const INVENTORY_ITEM_RULE_HINTS = {
+  capim: "Regra futura: liberar plantio de capim por tutorial inicial.",
+  trigo: "Regra futura: exigir solo preparado e nivel minimo de nutrientes.",
+  arvore: "Regra futura: exigir area maior e progresso de evolucao do mundo.",
+  girasol: "Regra futura: exigir desbloqueio de sementes especiais.",
+  morango: "Regra futura: exigir fase de cultivo intermediaria liberada.",
+  milho: "Regra futura: exigir upgrade de plantio avancado.",
+};
+
+const INVENTORY_UI_STORAGE_KEY = "farmbot.inventory.ui.v1";
+const INVENTORY_MODES = {
+  TOPBAR: "topbar",
+  OVERLAY: "overlay",
+};
 
 function debugAlert(message) {
   if (!DEBUG_ALERTS) return;
@@ -43,12 +87,157 @@ function debugAlert(message) {
 const logger = createLogger(logEl);
 
 let progressionUI = null;
+let inventoryHudEventsBound = false;
+let selectedInventoryItemId = null;
+
+function loadInventoryUiSettings() {
+  try {
+    const raw = localStorage.getItem(INVENTORY_UI_STORAGE_KEY);
+    if (!raw) {
+      return {
+        mode: INVENTORY_MODES.TOPBAR,
+        collapsed: false,
+      };
+    }
+
+    const parsed = JSON.parse(raw);
+    const mode = Object.values(INVENTORY_MODES).includes(parsed.mode)
+      ? parsed.mode
+      : INVENTORY_MODES.TOPBAR;
+
+    return {
+      mode,
+      collapsed: Boolean(parsed.collapsed),
+    };
+  } catch {
+    return {
+      mode: INVENTORY_MODES.TOPBAR,
+      collapsed: false,
+    };
+  }
+}
+
+function saveInventoryUiSettings(settings) {
+  try {
+    localStorage.setItem(INVENTORY_UI_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // Ignora falhas de persistencia (modo privado, quota, etc.).
+  }
+}
+
+const inventoryUiSettings = loadInventoryUiSettings();
+
+function bindInventoryHudEvents() {
+  if (!inventoryHudEl || inventoryHudEventsBound) return;
+
+  inventoryHudEl.addEventListener("click", (event) => {
+    const itemEl = event.target.closest("[data-inventory-item]");
+    if (itemEl) {
+      const itemId = itemEl.dataset.inventoryItem;
+      selectedInventoryItemId = selectedInventoryItemId === itemId ? null : itemId;
+      renderInventoryHud();
+      return;
+    }
+
+    const actionEl = event.target.closest("[data-inventory-action]");
+    if (!actionEl) return;
+
+    const action = actionEl.dataset.inventoryAction;
+    if (action === "toggle-collapse") {
+      inventoryUiSettings.collapsed = !inventoryUiSettings.collapsed;
+      saveInventoryUiSettings(inventoryUiSettings);
+      renderInventoryHud();
+      return;
+    }
+
+    if (action === "close-item-detail") {
+      selectedInventoryItemId = null;
+      renderInventoryHud();
+    }
+
+  });
+
+  inventoryHudEventsBound = true;
+}
+
+function renderInventoryHud() {
+  if (!inventoryHudEl) return;
+
+  const inventoryRows = gamePhases.getItemInventory();
+  const inventoryMap = new Map(inventoryRows.map((row) => [row.itemId, row.quantity]));
+  const allIds = [...INVENTORY_ITEM_ORDER];
+
+  const modeClass =
+    inventoryUiSettings.mode === INVENTORY_MODES.OVERLAY
+      ? "mode-overlay"
+      : "mode-topbar";
+  const expandedClass = inventoryUiSettings.collapsed ? "" : "is-expanded-floating";
+  const selectedLabel = INVENTORY_ITEM_LABELS[selectedInventoryItemId] || selectedInventoryItemId;
+  const selectedIcon = INVENTORY_ITEM_ICONS[selectedInventoryItemId] || "📦";
+  const selectedQty = selectedInventoryItemId ? inventoryMap.get(selectedInventoryItemId) || 0 : 0;
+  const selectedDesc =
+    INVENTORY_ITEM_RULE_HINTS[selectedInventoryItemId] ||
+    "Regra futura: definir pre-requisito para liberar este plantio.";
+
+  inventoryHudEl.className = `inventory-hud ${modeClass} ${expandedClass} ${
+    inventoryUiSettings.collapsed ? "is-collapsed" : ""
+  }`;
+
+  if (scenePanelEl) {
+    scenePanelEl.classList.toggle(
+      "inventory-mode-overlay",
+      inventoryUiSettings.mode === INVENTORY_MODES.OVERLAY
+    );
+  }
+
+  inventoryHudEl.innerHTML = `
+    <div class="inventory-hud-head">
+      <div class="inventory-toolbar">
+        <button class="btn inventory-btn" data-inventory-action="toggle-collapse">
+          ${inventoryUiSettings.collapsed ? "Expandir" : "Recolher"}
+        </button>
+      </div>
+    </div>
+    <div class="inventory-list ${inventoryUiSettings.collapsed ? "collapsed-view" : "expanded-view"}">
+      ${allIds
+        .map((itemId) => {
+          const label = INVENTORY_ITEM_LABELS[itemId] || itemId;
+          const icon = INVENTORY_ITEM_ICONS[itemId] || "📦";
+          const description =
+            INVENTORY_ITEM_RULE_HINTS[itemId] ||
+            "Regra futura: definir pre-requisito para liberar este plantio.";
+          const amount = inventoryMap.get(itemId) || 0;
+          const selectedClass = selectedInventoryItemId === itemId ? "is-selected" : "";
+          if (inventoryUiSettings.collapsed) {
+            return `<div class="inventory-item collapsed ${selectedClass}" data-inventory-item="${itemId}" title="${label}"><span class="item-icon">${icon}</span><span class="item-qty">${amount}</span></div>`;
+          } else {
+            return `<div class="inventory-item expanded ${selectedClass}" data-inventory-item="${itemId}"><span class="item-icon">${icon}</span><div class="item-info"><div class="item-main"><span class="item-label">${label}</span><span class="item-qty">Qtd: ${amount}</span></div><p class="item-desc">${description}</p></div></div>`;
+          }
+        })
+        .join("")}
+    </div>
+    ${selectedInventoryItemId
+      ? `<div class="inventory-item-float">
+          <button class="btn inventory-float-close" data-inventory-action="close-item-detail">Fechar</button>
+          <div class="inventory-item-float-head">
+            <span class="item-icon">${selectedIcon}</span>
+            <div>
+              <p class="inventory-item-float-title">${selectedLabel}</p>
+              <p class="inventory-item-float-qty">Qtd atual: ${selectedQty}</p>
+            </div>
+          </div>
+          <p class="inventory-item-float-desc">${selectedDesc}</p>
+        </div>`
+      : ""}
+  `;
+}
 
 const gamePhases = createGamePhases({
   onLog: logger.append,
   onPhaseChanged: ({ phase }) => {
     logger.append(`No atual: ${phase.title}`);
     logger.append(`Progresso geral: ${phase.progressLabel}`);
+    renderInventoryHud();
     if (progressionUI) {
       progressionUI.render();
     }
@@ -104,6 +293,7 @@ async function performAction(action) {
     } else {
       logger.append("Bateu na borda da fazenda");
     }
+    renderInventoryHud();
     return;
   }
 
@@ -116,6 +306,7 @@ async function performAction(action) {
     } else {
       logger.append("Bateu na borda da fazenda");
     }
+    renderInventoryHud();
     return;
   }
 
@@ -128,6 +319,7 @@ async function performAction(action) {
     } else {
       logger.append("Bateu na borda da fazenda");
     }
+    renderInventoryHud();
     return;
   }
 
@@ -140,6 +332,7 @@ async function performAction(action) {
     } else {
       logger.append("Bateu na borda da fazenda");
     }
+    renderInventoryHud();
     return;
   }
 
@@ -150,6 +343,7 @@ async function performAction(action) {
     gamePhases.recordEvent("plant", { cropType: result.crop.type });
     view.setCrop(result.x, result.y, result.crop.type);
     logger.append(`Plantou ${result.crop.type} em (${result.x}, ${result.y})`);
+    renderInventoryHud();
     return;
   }
 
@@ -161,6 +355,7 @@ async function performAction(action) {
     }
     view.setCrop(result.x, result.y, null);
     logger.append(`Colheu em (${result.x}, ${result.y})`);
+    renderInventoryHud();
   }
 }
 
@@ -191,6 +386,7 @@ function resetWorld() {
   logger.clear();
   view.reset(world.getSnapshot());
   logger.append("Mundo resetado");
+  renderInventoryHud();
 }
 
 function setupDebugHooks() {
@@ -240,9 +436,11 @@ window.addEventListener("resize", () => {
 });
 
 setupDebugHooks();
+bindInventoryHudEvents();
 resetWorld();
 view.resize();
 progressionUI.render();
+renderInventoryHud();
 
 window.gamePhases = {
   getCurrent: () => gamePhases.getCurrentPhase(),
@@ -257,6 +455,7 @@ window.gamePhases = {
   buyWorldUpgrade: (upgradeId) => {
     const purchase = gamePhases.purchaseWorldUpgrade(upgradeId);
     if (!purchase.ok) {
+      renderInventoryHud();
       return purchase;
     }
 
@@ -264,6 +463,8 @@ window.gamePhases = {
     if (worldState && Number.isFinite(worldState.width) && Number.isFinite(worldState.height)) {
       applyWorldDimensions(worldState.width, worldState.height, "upgrade");
     }
+
+    renderInventoryHud();
 
     return purchase;
   },
@@ -273,6 +474,7 @@ window.gamePhases = {
     gamePhases.resetProgress(options || {});
     const state = gamePhases.getWorldState();
     applyWorldDimensions(state.width, state.height, "reset-progress");
+    renderInventoryHud();
   },
 };
 
