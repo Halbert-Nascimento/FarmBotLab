@@ -467,44 +467,141 @@ function buildWorldExpansionUpgrades() {
   });
 }
 
+const INDIVIDUAL_CROPS_V1 = ["capim", "trigo", "milho", "arvore"];
+
+function cropLabel(cropId) {
+  const labels = {
+    capim: "Capim",
+    trigo: "Trigo",
+    milho: "Milho",
+    arvore: "Arvore",
+    morango: "Morango",
+  };
+  return labels[cropId] || cropId;
+}
+
+function buildCropTrackCosts(cropId, tier, profile) {
+  const costs = {
+    capim: 0,
+    trigo: 0,
+    milho: 0,
+    arvore: 0,
+  };
+
+  if (profile === "growth") {
+    costs[cropId] = 6 + tier * 3;
+    costs.capim += Math.max(0, tier - 1);
+    costs.trigo += Math.max(0, Math.floor(tier / 2) - 1);
+  } else if (profile === "planting") {
+    costs[cropId] = 8 + tier * 3;
+    costs.capim += Math.max(0, tier - 2);
+    costs.milho += Math.max(0, Math.floor(tier / 3) - 1);
+  } else if (profile === "harvest") {
+    costs[cropId] = 8 + tier * 3;
+    costs.trigo += Math.max(0, tier - 2);
+    costs.arvore += tier >= 6 ? 1 + Math.floor((tier - 6) / 2) : 0;
+  } else if (profile === "yield") {
+    costs[cropId] = 10 + tier * 4;
+    costs.milho += Math.max(0, tier - 2);
+    costs.arvore += tier >= 5 ? Math.floor((tier - 4) / 2) : 0;
+  }
+
+  return Object.fromEntries(Object.entries(costs).filter(([, qty]) => qty > 0));
+}
+
+function buildCropTieredUpgrades(cropId, profile) {
+  const profileMeta = {
+    growth: {
+      key: "growth.speed",
+      title: `${cropLabel(cropId)}: Velocidade de Crescimento`,
+      description: `Melhora o tempo de crescimento do ${cropLabel(cropId).toLowerCase()}.`,
+      effect: "future.crop.growth.speed",
+    },
+    planting: {
+      key: "planting.speed",
+      title: `${cropLabel(cropId)}: Velocidade de Plantio`,
+      description: `Melhora a velocidade de plantio do ${cropLabel(cropId).toLowerCase()}.`,
+      effect: "future.crop.planting.speed",
+    },
+    harvest: {
+      key: "harvest.speed",
+      title: `${cropLabel(cropId)}: Velocidade de Colheita`,
+      description: `Melhora a velocidade de colheita do ${cropLabel(cropId).toLowerCase()}.`,
+      effect: "future.crop.harvest.speed",
+    },
+    yield: {
+      key: "yield",
+      title: `${cropLabel(cropId)}: Quantidade por Colheita`,
+      description: `Aumenta a quantidade produzida por colheita de ${cropLabel(cropId).toLowerCase()}.`,
+      effect: "future.crop.yield",
+    },
+  };
+
+  const meta = profileMeta[profile];
+  if (!meta) return [];
+
+  const upgrades = [];
+  for (let tier = 1; tier <= 10; tier += 1) {
+    upgrades.push({
+      id: `upg.crop.${cropId}.${meta.key}.t${tier}`,
+      title: `${meta.title} T${tier}`,
+      description: `${meta.description} (tier ${tier}/10).`,
+      requiresFeatures: ["world.evolution.tier1"],
+      requiresUpgrades: tier > 1 ? [`upg.crop.${cropId}.${meta.key}.t${tier - 1}`] : [],
+      costs: buildCropTrackCosts(cropId, tier, profile),
+      effects: [`${meta.effect}.${cropId}.t${tier}`],
+    });
+  }
+  return upgrades;
+}
+
+function buildDroneTieredUpgrades(profile) {
+  const metaByProfile = {
+    move: {
+      key: "move.speed",
+      title: "Drone: Velocidade de Movimento",
+      description: "Melhora a velocidade de deslocamento do drone.",
+      effect: "future.drone.move.speed",
+    },
+    work: {
+      key: "work.speed",
+      title: "Drone: Velocidade de Trabalho",
+      description: "Melhora a velocidade de plantio/colheita do drone.",
+      effect: "future.drone.work.speed",
+    },
+  };
+
+  const meta = metaByProfile[profile];
+  if (!meta) return [];
+
+  const upgrades = [];
+  for (let tier = 1; tier <= 10; tier += 1) {
+    upgrades.push({
+      id: `upg.drone.${meta.key}.t${tier}`,
+      title: `${meta.title} T${tier}`,
+      description: `${meta.description} (tier ${tier}/10).`,
+      requiresFeatures: ["world.evolution.tier1"],
+      requiresUpgrades: tier > 1 ? [`upg.drone.${meta.key}.t${tier - 1}`] : [],
+      costs: {
+        capim: 8 + tier * 2,
+        trigo: 4 + tier,
+        milho: Math.max(0, tier - 2),
+        arvore: tier >= 6 ? 1 + Math.floor((tier - 6) / 2) : 0,
+      },
+      effects: [`${meta.effect}.t${tier}`],
+    });
+  }
+  return upgrades;
+}
+
 export const WORLD_UPGRADES_V1 = [
   ...buildWorldExpansionUpgrades(),
-  {
-    id: "upg.crop.growth.speed.t1",
-    title: "Crescimento Mais Rapido",
-    description: "Reserva melhoria de velocidade para crescimento das plantas.",
-    requiresFeatures: ["world.evolution.tier1"],
-    requiresUpgrades: [],
-    costs: {
-      capim: 18,
-      milho: 8,
-    },
-    effects: ["future.crop.growth.speed.t1"],
-  },
-  {
-    id: "upg.harvest.yield.t1",
-    title: "Colheita Mais Farta",
-    description: "Reserva melhoria para aumentar quantidade por colheita.",
-    requiresFeatures: ["world.evolution.tier1"],
-    requiresUpgrades: [],
-    costs: {
-      trigo: 10,
-      milho: 10,
-    },
-    effects: ["future.harvest.yield.t1"],
-  },
-  {
-    id: "upg.drone.speed.t1",
-    title: "Drone Mais Rapido",
-    description: "Reserva melhoria de velocidade de execucao do drone.",
-    requiresFeatures: ["world.evolution.tier1"],
-    requiresUpgrades: [],
-    costs: {
-      capim: 12,
-      arvore: 8,
-    },
-    effects: ["future.drone.speed.t1"],
-  },
+  ...INDIVIDUAL_CROPS_V1.flatMap((cropId) => buildCropTieredUpgrades(cropId, "growth")),
+  ...INDIVIDUAL_CROPS_V1.flatMap((cropId) => buildCropTieredUpgrades(cropId, "planting")),
+  ...INDIVIDUAL_CROPS_V1.flatMap((cropId) => buildCropTieredUpgrades(cropId, "harvest")),
+  ...INDIVIDUAL_CROPS_V1.flatMap((cropId) => buildCropTieredUpgrades(cropId, "yield")),
+  ...buildDroneTieredUpgrades("move"),
+  ...buildDroneTieredUpgrades("work"),
   {
     id: "upg.debug.system.t1",
     title: "Debug do Sistema",
@@ -532,6 +629,35 @@ export const WORLD_UPGRADES_V1 = [
     effects: ["future.dialog.system.t1"],
   },
 ];
+
+export const DEV_TREE_BRANCHES_V1 = {
+  game: [
+    { id: "dev.game.l0", branchId: "game", level: 0, title: "Jogo L0 - Base", description: "Inicio da progressao do jogo.", kind: "base", costs: {}, requiresDev: [] },
+    { id: "dev.game.l1", branchId: "game", level: 1, title: "Jogo L1 - Mundo 2x2", description: "Expande o mundo para 2x2.", kind: "world-upgrade", worldUpgradeId: "upg.world.size.2x2", requiresDev: ["dev.game.l0"] },
+    { id: "dev.game.l2", branchId: "game", level: 2, title: "Jogo L2 - Mundo 3x3", description: "Expande o mundo para 3x3.", kind: "world-upgrade", worldUpgradeId: "upg.world.size.3x3", requiresDev: ["dev.game.l1"] },
+    { id: "dev.game.l3", branchId: "game", level: 3, title: "Jogo L3 - Mundo 4x4", description: "Expande o mundo para 4x4.", kind: "world-upgrade", worldUpgradeId: "upg.world.size.4x4", requiresDev: ["dev.game.l2"] },
+    { id: "dev.game.l4", branchId: "game", level: 4, title: "Jogo L4 - Crescimento Capim", description: "Primeira melhoria individual de capim.", kind: "world-upgrade", worldUpgradeId: "upg.crop.capim.growth.speed.t1", requiresDev: ["dev.game.l3"] },
+    { id: "dev.game.l5", branchId: "game", level: 5, title: "Jogo L5 - Rendimento Trigo", description: "Primeira melhoria individual de producao do trigo.", kind: "world-upgrade", worldUpgradeId: "upg.crop.trigo.yield.t1", requiresDev: ["dev.game.l4"] },
+    { id: "dev.game.l6", branchId: "game", level: 6, title: "Jogo L6 - Drone Movimento", description: "Primeira melhoria individual de velocidade do drone.", kind: "world-upgrade", worldUpgradeId: "upg.drone.move.speed.t1", requiresDev: ["dev.game.l5"] },
+    { id: "dev.game.l7", branchId: "game", level: 7, title: "Jogo L7 - Mundo 6x6", description: "Expande o mundo para 6x6.", kind: "world-upgrade", worldUpgradeId: "upg.world.size.6x6", requiresDev: ["dev.game.l6"] },
+    { id: "dev.game.l8", branchId: "game", level: 8, title: "Jogo L8 - Mundo 9x9", description: "Expande o mundo para 9x9.", kind: "world-upgrade", worldUpgradeId: "upg.world.size.9x9", requiresDev: ["dev.game.l7"] },
+    { id: "dev.game.l9", branchId: "game", level: 9, title: "Jogo L9 - Mais Drones I", description: "Primeiro desbloqueio de drones adicionais.", kind: "feature", costs: { capim: 24, trigo: 14, milho: 10 }, unlocks: ["game.drone.extra.t1"], requiresDev: ["dev.game.l8"], unlockRules: [{ type: "metric", key: "runs", gte: 12 }] },
+    { id: "dev.game.l10", branchId: "game", level: 10, title: "Jogo L10 - Mais Drones II", description: "Segundo desbloqueio de drones adicionais.", kind: "feature", costs: { capim: 30, trigo: 18, milho: 14, arvore: 8 }, unlocks: ["game.drone.extra.t2"], requiresDev: ["dev.game.l9"], unlockRules: [{ type: "metric", key: "runs", gte: 20 }] },
+  ],
+  code: [
+    { id: "dev.code.l0", branchId: "code", level: 0, title: "Codigo L0 - Base", description: "Inicio da trilha de linguagem.", kind: "base", costs: {}, requiresDev: [] },
+    { id: "dev.code.l1", branchId: "code", level: 1, title: "Codigo L1 - If / Else", description: "Libera if e else.", kind: "feature", costs: { capim: 6 }, unlocks: ["lang.if", "lang.else"], requiresDev: ["dev.code.l0"], unlockRules: [{ type: "metric", key: "runs", gte: 2 }] },
+    { id: "dev.code.l2", branchId: "code", level: 2, title: "Codigo L2 - While", description: "Libera laco while.", kind: "feature", costs: { capim: 8, trigo: 4 }, unlocks: ["lang.while"], requiresDev: ["dev.code.l1"], unlockRules: [{ type: "metric", key: "runs", gte: 4 }] },
+    { id: "dev.code.l3", branchId: "code", level: 3, title: "Codigo L3 - For", description: "Libera laco for.", kind: "feature", costs: { capim: 10, trigo: 6 }, unlocks: ["lang.for"], requiresDev: ["dev.code.l2"], unlockRules: [{ type: "metric", key: "runs", gte: 6 }] },
+    { id: "dev.code.l4", branchId: "code", level: 4, title: "Codigo L4 - Variaveis", description: "Libera declaracao de variaveis.", kind: "feature", costs: { capim: 10, trigo: 8, milho: 4 }, unlocks: ["lang.var"], requiresDev: ["dev.code.l3"], unlockRules: [{ type: "metric", key: "moves", gte: 20 }] },
+    { id: "dev.code.l5", branchId: "code", level: 5, title: "Codigo L5 - Funcoes", description: "Libera criacao de funcoes.", kind: "feature", costs: { capim: 12, trigo: 10, milho: 6 }, unlocks: ["lang.function"], requiresDev: ["dev.code.l4"], unlockRules: [{ type: "metric", key: "runs", gte: 8 }] },
+    { id: "dev.code.l6", branchId: "code", level: 6, title: "Codigo L6 - Parametros", description: "Libera funcoes com parametros.", kind: "feature", costs: { capim: 12, trigo: 12, milho: 8 }, unlocks: ["lang.function.params"], requiresDev: ["dev.code.l5"], unlockRules: [{ type: "metric", key: "plants", gte: 18 }] },
+    { id: "dev.code.l7", branchId: "code", level: 7, title: "Codigo L7 - Arrays", description: "Libera arrays e listas.", kind: "feature", costs: { capim: 14, trigo: 12, milho: 10 }, unlocks: ["lang.array.basic"], requiresDev: ["dev.code.l6"], unlockRules: [{ type: "metric", key: "plants", gte: 24 }] },
+    { id: "dev.code.l8", branchId: "code", level: 8, title: "Codigo L8 - Math JS", description: "Libera funcoes prontas de Math (ex.: sqrt).", kind: "feature", costs: { capim: 16, trigo: 14, milho: 12 }, unlocks: ["lang.js.math"], requiresDev: ["dev.code.l7"], unlockRules: [{ type: "metric", key: "harvests", gte: 8 }] },
+    { id: "dev.code.l9", branchId: "code", level: 9, title: "Codigo L9 - Async", description: "Libera funcoes assincronas.", kind: "feature", costs: { capim: 18, trigo: 16, milho: 14, arvore: 4 }, unlocks: ["lang.async"], requiresDev: ["dev.code.l8"], unlockRules: [{ type: "metric", key: "runs", gte: 14 }] },
+    { id: "dev.code.l10", branchId: "code", level: 10, title: "Codigo L10 - Maestria", description: "Pacote final de recursos de codigo desta etapa.", kind: "feature", costs: { capim: 20, trigo: 18, milho: 16, arvore: 6 }, unlocks: ["lang.mastery.t1"], requiresDev: ["dev.code.l9"], unlockRules: [{ type: "metric", key: "runs", gte: 20 }] },
+  ],
+};
 
 function cloneNode(node) {
   return {
@@ -586,6 +712,17 @@ function cloneUpgrade(upgrade) {
   };
 }
 
+function cloneDevUpgrade(item) {
+  return {
+    ...item,
+    requiresDev: [...(item.requiresDev || [])],
+    requiresFeatures: [...(item.requiresFeatures || [])],
+    unlockRules: [...(item.unlockRules || [])],
+    unlocks: [...(item.unlocks || [])],
+    costs: { ...(item.costs || {}) },
+  };
+}
+
 function collectMissingCosts(costs, inventory) {
   const missing = {};
   Object.entries(costs || {}).forEach(([itemId, qty]) => {
@@ -603,6 +740,63 @@ function hasAnyMissingCosts(missingCosts) {
 
 function evaluateUpgradeUnlockRules(unlockRules, stats) {
   return (unlockRules || []).every((rule) => evaluateRequirement(rule, stats));
+}
+
+function getRuleProgress(rule, stats) {
+  if (!rule) return { ok: true, label: "Sem regra", action: "" };
+
+  if (rule.type === "metric") {
+    const current = getMetricValue(stats, rule.key);
+    const metricLabels = {
+      runs: "Execucoes de script",
+      moves: "Movimentos",
+      plants: "Plantios",
+      harvests: "Colheitas",
+    };
+    const actionByMetric = {
+      runs: "Execute scripts para aumentar esse contador.",
+      moves: "Mova o personagem para aumentar esse contador.",
+      plants: "Plante culturas para aumentar esse contador.",
+      harvests: "Colha culturas para aumentar esse contador.",
+    };
+    return {
+      ok: current >= rule.gte,
+      label: `${metricLabels[rule.key] || rule.key} ${current}/${rule.gte}`,
+      action: actionByMetric[rule.key] || "Continue progredindo para cumprir a meta.",
+    };
+  }
+
+  if (rule.type === "cropPlant") {
+    const current = stats.plantsByCrop[rule.cropType] || 0;
+    return {
+      ok: current >= rule.gte,
+      label: `Plantar ${rule.cropType} ${current}/${rule.gte}`,
+      action: `Plante mais ${rule.cropType} para completar a meta.`,
+    };
+  }
+
+  if (rule.type === "uniqueCrops") {
+    const current = Object.keys(stats.plantsByCrop).filter((crop) => (stats.plantsByCrop[crop] || 0) > 0).length;
+    return {
+      ok: current >= rule.gte,
+      label: `Culturas distintas ${current}/${rule.gte}`,
+      action: "Plante tipos diferentes de cultura para aumentar esse total.",
+    };
+  }
+
+  return {
+    ok: true,
+    label: "Regra desconhecida",
+    action: "",
+  };
+}
+
+function getFeatureUnlockHint(featureId) {
+  const hints = {
+    "world.expansion.available": "Conclua a trilha principal de missoes para liberar a expansao de mundo.",
+    "world.evolution.tier1": "Conclua a trilha principal de missoes para liberar a evolucao manual do mundo.",
+  };
+  return hints[featureId] || `Desbloqueie o recurso ${featureId} na progressao atual.`;
 }
 
 function buildNodeIndex(nodes) {
@@ -691,6 +885,7 @@ function decorateMissionForView(mission, stats, isUnlocked, isCompleted) {
 export function createGamePhases({
   onLog,
   onPhaseChanged,
+  onWorldStateChanged,
   nodes = MISSION_TREE_NODES_V1,
   missions = INITIAL_MISSIONS_V1,
   worldUpgrades = WORLD_UPGRADES_V1,
@@ -699,6 +894,11 @@ export function createGamePhases({
   const missionList = missions.map(cloneMission);
   const worldUpgradeList = worldUpgrades.map(cloneUpgrade);
   const worldUpgradeById = new Map(worldUpgradeList.map((upgrade) => [upgrade.id, upgrade]));
+  const devUpgradeList = [
+    ...(DEV_TREE_BRANCHES_V1.game || []).map(cloneDevUpgrade),
+    ...(DEV_TREE_BRANCHES_V1.code || []).map(cloneDevUpgrade),
+  ];
+  const devUpgradeById = new Map(devUpgradeList.map((item) => [item.id, item]));
   const nodeById = buildNodeIndex(nodeList);
   const missionById = buildMissionIndex(missionList);
 
@@ -707,6 +907,7 @@ export function createGamePhases({
   const completedMissionIds = new Set();
   const unlockedRewardFeatureIds = new Set();
   const purchasedWorldUpgradeIds = new Set();
+  const purchasedDevUpgradeIds = new Set();
   let currentWorldSize = {
     width: WORLD_SIZE_LADDER_V1[0].width,
     height: WORLD_SIZE_LADDER_V1[0].height,
@@ -861,22 +1062,273 @@ export function createGamePhases({
     const featureSet = new Set(getUnlockedFeatures());
     return worldUpgradeList.map((upgrade) => {
       const isPurchased = purchasedWorldUpgradeIds.has(upgrade.id);
-      const isUnlocked = (upgrade.requiresFeatures || []).every((feature) => featureSet.has(feature));
-      const requirementsMet = (upgrade.requiresUpgrades || []).every((requiredId) =>
-        purchasedWorldUpgradeIds.has(requiredId)
+      const missingFeatures = (upgrade.requiresFeatures || []).filter((feature) => !featureSet.has(feature));
+      const missingUpgrades = (upgrade.requiresUpgrades || []).filter(
+        (requiredId) => !purchasedWorldUpgradeIds.has(requiredId)
       );
-      const rulesMet = evaluateUpgradeUnlockRules(upgrade.unlockRules, stats);
+      const ruleProgress = (upgrade.unlockRules || []).map((rule) => getRuleProgress(rule, stats));
+      const missingRules = ruleProgress.filter((entry) => !entry.ok);
       const missingCosts = collectMissingCosts(upgrade.costs, stats.itemsByType);
       const canAfford = !hasAnyMissingCosts(missingCosts);
+      const isUnlocked = missingFeatures.length === 0 && missingUpgrades.length === 0 && missingRules.length === 0;
+
+      const blockedReasons = [];
+      if (!isPurchased) {
+        if (missingFeatures.length > 0) {
+          blockedReasons.push(`Recursos faltando: ${missingFeatures.join(" | ")}`);
+        }
+        if (missingUpgrades.length > 0) {
+          blockedReasons.push(`Upgrades anteriores faltando: ${missingUpgrades.join(" | ")}`);
+        }
+        if (missingRules.length > 0) {
+          blockedReasons.push(
+            `Metas pendentes: ${missingRules.map((entry) => entry.label).join(" | ")}`
+          );
+        }
+      }
+
+      const unlockSteps = [];
+      missingFeatures.forEach((featureId) => {
+        unlockSteps.push(getFeatureUnlockHint(featureId));
+      });
+      if (missingUpgrades.length > 0) {
+        unlockSteps.push(`Compre antes: ${missingUpgrades.join(" | ")}.`);
+      }
+      missingRules.forEach((entry) => {
+        if (entry.action) unlockSteps.push(entry.action);
+      });
 
       return {
         ...upgrade,
         isPurchased,
-        isUnlocked: isUnlocked && requirementsMet && rulesMet,
-        canAfford: isUnlocked && requirementsMet && rulesMet && !isPurchased && canAfford,
+        isUnlocked,
+        canAfford: isUnlocked && !isPurchased && canAfford,
         missingCosts,
+        missingFeatures,
+        missingUpgrades,
+        missingRules,
+        blockedReasons,
+        unlockSteps,
       };
     });
+  }
+
+  function isDevUpgradePurchased(item, unlockedFeatureSet, worldUpgradesById) {
+    if (!item || item.kind === "base") return true;
+    if (item.kind === "world-upgrade") {
+      const linked = worldUpgradesById.get(item.worldUpgradeId);
+      return Boolean(linked && linked.isPurchased);
+    }
+    if (purchasedDevUpgradeIds.has(item.id)) return true;
+    const unlocks = item.unlocks || [];
+    return unlocks.length > 0 && unlocks.every((feature) => unlockedFeatureSet.has(feature));
+  }
+
+  function getDevTree() {
+    const unlockedFeatureSet = new Set(getUnlockedFeatures());
+    const worldStates = getWorldUpgrades();
+    const worldById = new Map(worldStates.map((upg) => [upg.id, upg]));
+    const purchasedMap = new Map();
+
+    devUpgradeList.forEach((item) => {
+      purchasedMap.set(item.id, isDevUpgradePurchased(item, unlockedFeatureSet, worldById));
+    });
+
+    const decorate = (item) => {
+      const isPurchased = purchasedMap.get(item.id);
+      const missingDevReqs = (item.requiresDev || []).filter((reqId) => !purchasedMap.get(reqId));
+      const missingFeatureReqs = (item.requiresFeatures || []).filter((feature) => !unlockedFeatureSet.has(feature));
+      const ruleProgress = (item.unlockRules || []).map((rule) => getRuleProgress(rule, stats));
+      const missingRuleReqs = ruleProgress.filter((entry) => !entry.ok);
+
+      if (item.kind === "world-upgrade") {
+        const linked = worldById.get(item.worldUpgradeId);
+        const costs = { ...((linked && linked.costs) || {}) };
+        const missingCosts = { ...((linked && linked.missingCosts) || collectMissingCosts(costs, stats.itemsByType)) };
+        const linkedMissingFeatures = (linked && linked.missingFeatures) || [];
+        const linkedMissingUpgrades = (linked && linked.missingUpgrades) || [];
+        const linkedMissingRules = (linked && linked.missingRules) || [];
+        const isUnlocked =
+          !isPurchased &&
+          missingDevReqs.length === 0 &&
+          missingFeatureReqs.length === 0 &&
+          missingRuleReqs.length === 0 &&
+          Boolean(linked && linked.isUnlocked);
+        const canAfford = !isPurchased && isUnlocked && Boolean(linked && linked.canAfford);
+
+        const blockedReasons = [];
+        if (!isPurchased) {
+          if (missingDevReqs.length > 0) {
+            blockedReasons.push(`Niveis anteriores faltando: ${missingDevReqs.join(" | ")}`);
+          }
+          if (missingFeatureReqs.length > 0) {
+            blockedReasons.push(`Recursos faltando: ${missingFeatureReqs.join(" | ")}`);
+          }
+          if (missingRuleReqs.length > 0) {
+            blockedReasons.push(`Metas pendentes: ${missingRuleReqs.map((entry) => entry.label).join(" | ")}`);
+          }
+          if (linkedMissingFeatures.length > 0) {
+            blockedReasons.push(`Recurso do upgrade de mundo faltando: ${linkedMissingFeatures.join(" | ")}`);
+          }
+          if (linkedMissingUpgrades.length > 0) {
+            blockedReasons.push(`Upgrade de mundo previo faltando: ${linkedMissingUpgrades.join(" | ")}`);
+          }
+          if (linkedMissingRules.length > 0) {
+            blockedReasons.push(
+              `Meta do upgrade de mundo pendente: ${linkedMissingRules.map((entry) => entry.label).join(" | ")}`
+            );
+          }
+        }
+
+        const unlockSteps = [];
+        missingFeatureReqs.forEach((featureId) => {
+          unlockSteps.push(getFeatureUnlockHint(featureId));
+        });
+        linkedMissingFeatures.forEach((featureId) => {
+          unlockSteps.push(getFeatureUnlockHint(featureId));
+        });
+        if (missingDevReqs.length > 0) {
+          unlockSteps.push(`Conclua antes os niveis: ${missingDevReqs.join(" | ")}.`);
+        }
+        if (linkedMissingUpgrades.length > 0) {
+          unlockSteps.push(`Compre antes os upgrades: ${linkedMissingUpgrades.join(" | ")}.`);
+        }
+        missingRuleReqs.forEach((entry) => {
+          if (entry.action) unlockSteps.push(entry.action);
+        });
+        linkedMissingRules.forEach((entry) => {
+          if (entry.action) unlockSteps.push(entry.action);
+        });
+
+        return {
+          ...item,
+          isPurchased,
+          isUnlocked,
+          canAfford,
+          costs,
+          missingCosts,
+          requirementsLabel: [
+            ...(item.requiresDev || []).map((id) => `dev:${id}`),
+            ...(item.requiresFeatures || []).map((f) => `feature:${f}`),
+          ],
+          missingDevReqs,
+          missingFeatureReqs,
+          missingRuleReqs,
+          blockedReasons,
+          unlockSteps,
+        };
+      }
+
+      const costs = { ...(item.costs || {}) };
+      const missingCosts = collectMissingCosts(costs, stats.itemsByType);
+      const canAfford = !hasAnyMissingCosts(missingCosts);
+      const isUnlocked =
+        !isPurchased && missingDevReqs.length === 0 && missingFeatureReqs.length === 0 && missingRuleReqs.length === 0;
+
+      const blockedReasons = [];
+      if (!isPurchased) {
+        if (missingDevReqs.length > 0) {
+          blockedReasons.push(`Niveis anteriores faltando: ${missingDevReqs.join(" | ")}`);
+        }
+        if (missingFeatureReqs.length > 0) {
+          blockedReasons.push(`Recursos faltando: ${missingFeatureReqs.join(" | ")}`);
+        }
+        if (missingRuleReqs.length > 0) {
+          blockedReasons.push(`Metas pendentes: ${missingRuleReqs.map((entry) => entry.label).join(" | ")}`);
+        }
+      }
+
+      const unlockSteps = [];
+      missingFeatureReqs.forEach((featureId) => {
+        unlockSteps.push(getFeatureUnlockHint(featureId));
+      });
+      if (missingDevReqs.length > 0) {
+        unlockSteps.push(`Conclua antes os niveis: ${missingDevReqs.join(" | ")}.`);
+      }
+      missingRuleReqs.forEach((entry) => {
+        if (entry.action) unlockSteps.push(entry.action);
+      });
+
+      return {
+        ...item,
+        isPurchased,
+        isUnlocked,
+        canAfford: !isPurchased && isUnlocked && canAfford,
+        costs,
+        missingCosts,
+        requirementsLabel: [
+          ...(item.requiresDev || []).map((id) => `dev:${id}`),
+          ...(item.requiresFeatures || []).map((f) => `feature:${f}`),
+        ],
+        missingDevReqs,
+        missingFeatureReqs,
+        missingRuleReqs,
+        blockedReasons,
+        unlockSteps,
+      };
+    };
+
+    return {
+      game: devUpgradeList.filter((item) => item.branchId === "game").sort((a, b) => a.level - b.level).map(decorate),
+      code: devUpgradeList.filter((item) => item.branchId === "code").sort((a, b) => a.level - b.level).map(decorate),
+    };
+  }
+
+  function purchaseDevUpgrade(upgradeId) {
+    const upgrade = devUpgradeById.get(upgradeId);
+    if (!upgrade) {
+      return { ok: false, reason: "invalid-dev-upgrade" };
+    }
+
+    const tree = getDevTree();
+    const state = [...tree.game, ...tree.code].find((item) => item.id === upgradeId);
+    if (!state) {
+      return { ok: false, reason: "dev-upgrade-state-missing" };
+    }
+
+    if (state.isPurchased) {
+      return { ok: false, reason: "already-purchased" };
+    }
+
+    if (!state.isUnlocked) {
+      return { ok: false, reason: "locked-upgrade" };
+    }
+
+    if (!state.canAfford) {
+      return { ok: false, reason: "insufficient-items", missingCosts: state.missingCosts };
+    }
+
+    if (upgrade.kind === "world-upgrade") {
+      const worldResult = purchaseWorldUpgrade(upgrade.worldUpgradeId);
+      if (!worldResult.ok) return worldResult;
+      purchasedDevUpgradeIds.add(upgrade.id);
+      return {
+        ok: true,
+        type: "world-upgrade",
+        upgrade,
+        worldState: getWorldState(),
+        inventory: getItemInventory(),
+      };
+    }
+
+    Object.entries(upgrade.costs || {}).forEach(([itemId, qty]) => {
+      stats.itemsByType[itemId] = Math.max(0, (stats.itemsByType[itemId] || 0) - qty);
+    });
+
+    (upgrade.unlocks || []).forEach((feature) => {
+      if (feature) unlockedRewardFeatureIds.add(feature);
+    });
+
+    purchasedDevUpgradeIds.add(upgrade.id);
+    emitPhaseChanged("dev-upgrade");
+
+    return {
+      ok: true,
+      type: "feature",
+      upgrade,
+      inventory: getItemInventory(),
+      unlockedFeatures: getUnlockedFeatures(),
+    };
   }
 
   function getWorldState() {
@@ -941,6 +1393,13 @@ export function createGamePhases({
         width: upgrade.worldSize.width,
         height: upgrade.worldSize.height,
       };
+      if (typeof onWorldStateChanged === "function") {
+        onWorldStateChanged({
+          width: currentWorldSize.width,
+          height: currentWorldSize.height,
+          reason: "world-upgrade",
+        });
+      }
       if (typeof onLog === "function") {
         onLog(`Novo tamanho de mundo ativo: ${currentWorldSize.width}x${currentWorldSize.height}`);
       }
@@ -1066,6 +1525,7 @@ export function createGamePhases({
     completedNodeIds.clear();
     unlockedRewardFeatureIds.clear();
     purchasedWorldUpgradeIds.clear();
+    purchasedDevUpgradeIds.clear();
     currentWorldSize = {
       width: WORLD_SIZE_LADDER_V1[0].width,
       height: WORLD_SIZE_LADDER_V1[0].height,
@@ -1092,6 +1552,8 @@ export function createGamePhases({
     getWorldState,
     getWorldUpgrades,
     purchaseWorldUpgrade,
+    getDevTree,
+    purchaseDevUpgrade,
     getMissionTree,
     getMissions,
     getActiveMissions,

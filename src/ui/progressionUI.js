@@ -126,81 +126,462 @@ function featureLabel(feature) {
     "api.plant": "Plantio: plantar(tipo)",
     "api.harvest": "Colheita: colher()",
     "lang.if": "Condicionais: if / else",
+    "lang.else": "Condicionais: else",
     "lang.while": "Repeticao: while",
     "lang.for": "Repeticao: for",
+    "lang.var": "Declaracao de variaveis",
     "lang.function": "Funcoes basicas",
     "lang.function.params": "Funcoes com parametros",
     "lang.array.basic": "Arrays e iteracao basica",
+    "lang.js.math": "Funcoes nativas Math.*",
+    "lang.async": "Funcoes assincronas",
+    "lang.mastery.t1": "Maestria de scripts",
+    "game.drone.extra.t1": "Drone extra - nivel 1",
+    "game.drone.extra.t2": "Drone extra - nivel 2",
     "strategy.pathing": "Planejamento de rotas",
     "strategy.efficiency": "Eficiencia de scripts",
     "mastery.challenge": "Desafios de maestria",
-    "world.expansion.available": "Novo Mundo: desbloqueado para expansao futura",
-    "world.evolution.tier1": "Sistema de evolucao manual (tier 1)",
+    "world.expansion.available": "Expansao de Mundo",
+    "world.evolution.tier1": "Evolucao Manual do Mundo",
   };
   return labels[feature] || feature;
 }
 
-function renderUnlockedOverview(treeNodes, unlockedFeatures) {
-  const unlockedNodes = treeNodes.filter((node) => node.isUnlocked);
-  const unlockedMissions = treeNodes
-    .flatMap((node) => node.missions || [])
-    .filter((mission) => mission.isUnlocked);
-  const completedMissions = unlockedMissions.filter((mission) => mission.isCompleted);
+function itemLabel(itemId) {
+  const labels = {
+    capim: "Capim",
+    trigo: "Trigo",
+    milho: "Milho",
+    arvore: "Arvore",
+    generic: "Item Generico",
+  };
+  return labels[itemId] || itemId;
+}
 
+function featureUnlockHint(featureId) {
+  const hints = {
+    "world.expansion.available":
+      "Abra Arvore de Missoes e conclua a Missao 20 (Dominio da Fazenda): 60 movimentos, 30 plantios e 12 colheitas.",
+    "world.evolution.tier1":
+      "Abra Arvore de Missoes e conclua a Missao 20 (Dominio da Fazenda): 60 movimentos, 30 plantios e 12 colheitas.",
+  };
+  return hints[featureId] || `Conclua as missoes da progressao para liberar: ${featureLabel(featureId)}.`;
+}
+
+function formatCostList(costs) {
+  const entries = Object.entries(costs || {}).filter(([, qty]) => qty > 0);
+  if (!entries.length) return "Sem custo";
+  return entries.map(([itemId, qty]) => `${itemLabel(itemId)}: ${qty}`).join(" | ");
+}
+
+function formatRuleLabel(rule) {
+  if (!rule) return "";
+  if (rule.type === "metric") {
+    const metricLabels = {
+      runs: "Execucoes de script",
+      moves: "Movimentos",
+      plants: "Plantios",
+      harvests: "Colheitas",
+    };
+    const label = metricLabels[rule.key] || rule.key;
+    return `${label} >= ${rule.gte}`;
+  }
+  if (rule.type === "cropPlant") {
+    return `Plantar ${itemLabel(rule.cropType)}: ${rule.gte}+`;
+  }
+  if (rule.type === "uniqueCrops") {
+    return `Culturas distintas: ${rule.gte}+`;
+  }
+  return "Requisito adicional";
+}
+
+function formatDevRequirements(item, options = {}) {
+  const devById = options.devById instanceof Map ? options.devById : new Map();
+  const worldById = options.worldById instanceof Map ? options.worldById : new Map();
+  const parts = [];
+
+  const devReqs = item.requiresDev || [];
+  if (devReqs.length) {
+    const titles = devReqs.map((reqId) => {
+      const req = devById.get(reqId);
+      return req ? req.title : reqId;
+    });
+    parts.push(`Concluir antes: ${titles.join(" | ")}`);
+  }
+
+  const worldReqs = item.requiresUpgrades || [];
+  if (worldReqs.length) {
+    const titles = worldReqs.map((reqId) => {
+      const req = worldById.get(reqId);
+      return req ? req.title : reqId;
+    });
+    parts.push(`Upgrades previos: ${titles.join(" | ")}`);
+  }
+
+  const featureReqs = item.requiresFeatures || [];
+  if (featureReqs.length) {
+    parts.push(`Features necessarias: ${featureReqs.map(featureLabel).join(" | ")}`);
+  }
+
+  const ruleReqs = item.unlockRules || [];
+  if (ruleReqs.length) {
+    parts.push(`Metas: ${ruleReqs.map(formatRuleLabel).join(" | ")}`);
+  }
+
+  if (!parts.length) {
+    return "Sem requisito adicional";
+  }
+
+  return parts.join(" • ");
+}
+
+function uniqueLines(lines) {
+  return Array.from(new Set((lines || []).filter(Boolean)));
+}
+
+function buildLockFeedback(item, options = {}) {
+  if (!item) {
+    return {
+      blockedReasons: [],
+      unlockSteps: [],
+    };
+  }
+
+  const devById = options.devById instanceof Map ? options.devById : new Map();
+  const worldById = options.worldById instanceof Map ? options.worldById : new Map();
+
+  const blockedReasons = [];
+  const unlockSteps = [];
+
+  const missingDevReqs = item.missingDevReqs || [];
+  if (missingDevReqs.length) {
+    const labels = missingDevReqs.map((id) => devById.get(id)?.title || id);
+    blockedReasons.push(`Niveis anteriores faltando: ${labels.join(" | ")}`);
+    unlockSteps.push(`Conclua antes: ${labels.join(" | ")}.`);
+  }
+
+  const missingFeatureReqs = item.missingFeatureReqs || item.missingFeatures || [];
+  if (missingFeatureReqs.length) {
+    blockedReasons.push(`Falta liberar: ${missingFeatureReqs.map(featureLabel).join(" | ")}`);
+    missingFeatureReqs.forEach((featureId) => {
+      unlockSteps.push(featureUnlockHint(featureId));
+    });
+  }
+
+  const missingUpgrades = item.missingUpgrades || [];
+  if (missingUpgrades.length) {
+    const labels = missingUpgrades.map((id) => worldById.get(id)?.title || id);
+    blockedReasons.push(`Upgrades anteriores faltando: ${labels.join(" | ")}`);
+    unlockSteps.push(`Compre antes: ${labels.join(" | ")}.`);
+  }
+
+  const missingRules = item.missingRuleReqs || item.missingRules || [];
+  if (missingRules.length) {
+    blockedReasons.push(`Metas pendentes: ${missingRules.map((rule) => rule.label || "meta").join(" | ")}`);
+    missingRules.forEach((rule) => {
+      if (rule.action) unlockSteps.push(rule.action);
+    });
+  }
+
+  return {
+    blockedReasons: uniqueLines(blockedReasons),
+    unlockSteps: uniqueLines(unlockSteps),
+  };
+}
+
+function parseTierFromId(id) {
+  if (!id || typeof id !== "string") return null;
+  const match = id.match(/\.t(\d+)$/);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
+function normalizeWorldTrackId(upgradeId) {
+  if (typeof upgradeId !== "string") return "world.misc";
+  if (upgradeId.startsWith("upg.world.size.")) return "world.size";
+  return upgradeId.replace(/\.t\d+$/, "");
+}
+
+function worldTrackTitle(trackKey, firstUpgrade) {
+  const cropMatch = trackKey.match(/^upg\.crop\.([^.]+)\.(growth\.speed|planting\.speed|harvest\.speed|yield)$/);
+  if (cropMatch) {
+    const cropId = cropMatch[1];
+    const aspect = cropMatch[2];
+    const crop = itemLabel(cropId);
+    if (aspect === "growth.speed") return `${crop}: Velocidade de Crescimento`;
+    if (aspect === "planting.speed") return `${crop}: Velocidade de Plantio`;
+    if (aspect === "harvest.speed") return `${crop}: Velocidade de Colheita`;
+    if (aspect === "yield") return `${crop}: Quantidade por Colheita`;
+  }
+
+  const droneMatch = trackKey.match(/^upg\.drone\.(move\.speed|work\.speed)$/);
+  if (droneMatch) {
+    const aspect = droneMatch[1];
+    if (aspect === "move.speed") return "Drone: Velocidade de Movimento";
+    if (aspect === "work.speed") return "Drone: Velocidade de Trabalho";
+  }
+
+  const labels = {
+    "world.size": "Upgrade de Mundo",
+    "upg.debug.system": "Sistema: Debug",
+    "upg.dialog.system": "Sistema: Dialogos",
+  };
+  return labels[trackKey] || (firstUpgrade ? firstUpgrade.title : trackKey);
+}
+
+function buildTrackFromDevItems(trackId, branchId, title, description, items) {
+  const sorted = [...(items || [])].sort((a, b) => a.level - b.level);
+  if (!sorted.length) return null;
+
+  const purchasedCount = sorted.filter((item) => item.isPurchased).length;
+  const nextItem = sorted.find((item) => !item.isPurchased) || null;
+  const total = sorted.length;
+  const currentStep = nextItem ? sorted.indexOf(nextItem) + 1 : total;
+
+  return {
+    id: trackId,
+    branchId,
+    kind: "dev-track",
+    title,
+    description,
+    total,
+    currentStep,
+    purchasedCount,
+    progressLabel: `[${currentStep}/${total}]`,
+    isCompleted: !nextItem,
+    isUnlocked: Boolean(nextItem && nextItem.isUnlocked),
+    canAfford: Boolean(nextItem && nextItem.canAfford),
+    nextItem,
+  };
+}
+
+function buildWorldTracks(worldUpgrades) {
+  const grouped = new Map();
+
+  (worldUpgrades || []).forEach((upgrade, order) => {
+    const trackKey = normalizeWorldTrackId(upgrade.id);
+    if (!grouped.has(trackKey)) {
+      grouped.set(trackKey, []);
+    }
+    grouped.get(trackKey).push({ ...upgrade, _order: order });
+  });
+
+  return Array.from(grouped.entries())
+    .map(([trackKey, list]) => {
+      const items = [...list].sort((a, b) => a._order - b._order);
+      const purchasedCount = items.filter((item) => item.isPurchased).length;
+      const nextItem = items.find((item) => !item.isPurchased) || null;
+      const total =
+        trackKey === "world.size"
+          ? items.length + 1
+          : items.reduce((max, item) => Math.max(max, parseTierFromId(item.id) || 0), 0) || items.length;
+      const currentStep = nextItem
+        ? trackKey === "world.size"
+          ? purchasedCount + 1
+          : parseTierFromId(nextItem.id) || purchasedCount + 1
+        : total;
+
+      return {
+        id: `track.${trackKey}`,
+        branchId: "game",
+        kind: "world-track",
+        title: worldTrackTitle(trackKey, items[0]),
+        description:
+          trackKey === "world.size"
+            ? "Expansao continua do mundo de 1x2 ate 32x32 no mesmo card."
+            : `Trilha progressiva em um unico card para ${worldTrackTitle(trackKey, items[0]).toLowerCase()}.`,
+        total,
+        currentStep,
+        purchasedCount,
+        progressLabel: `[${Math.min(currentStep, total)}/${total}]`,
+        isCompleted: !nextItem,
+        isUnlocked: Boolean(nextItem && nextItem.isUnlocked),
+        canAfford: Boolean(nextItem && nextItem.canAfford),
+        nextItem,
+      };
+    })
+    .sort((a, b) => {
+      if (a.id === "track.world.size") return -1;
+      if (b.id === "track.world.size") return 1;
+      return a.title.localeCompare(b.title);
+    });
+}
+
+function buildDevTracks(devTree, worldUpgrades) {
+  const gameItems = (devTree.game || []).filter((item) => item.kind !== "base" && item.kind !== "world-upgrade");
+  const codeItems = (devTree.code || []).filter((item) => item.kind !== "base" && item.kind !== "world-upgrade");
+
+  const gameTracks = [...buildWorldTracks(worldUpgrades)];
+  if (gameItems.length) {
+    const gameTrack = buildTrackFromDevItems(
+      "track.dev.game.features",
+      "game",
+      "Jogo: Recursos Avancados",
+      "Desbloqueios especiais de jogo no fim da progressao.",
+      gameItems
+    );
+    if (gameTrack) gameTracks.push(gameTrack);
+  }
+
+  const codeTracks = [];
+  if (codeItems.length) {
+    const codeTrack = buildTrackFromDevItems(
+      "track.dev.code.core",
+      "code",
+      "Codigo: Trilha Principal",
+      "Evolucao de linguagem e recursos de script em um unico card progressivo.",
+      codeItems
+    );
+    if (codeTrack) codeTracks.push(codeTrack);
+  }
+
+  return {
+    game: gameTracks,
+    code: codeTracks,
+  };
+}
+
+function renderDevBranch(title, branchId, tracks, selectedTrackId) {
   return `
-    <section class="mission-card">
-      <h4>Tudo Que Ja Esta Liberado</h4>
-      <p class="muted">Nos desbloqueados: ${unlockedNodes.length} | Missoes desbloqueadas: ${unlockedMissions.length} | Missoes concluidas: ${completedMissions.length}</p>
-
-      <details class="lesson-box compact" open>
-        <summary>Nos desbloqueados</summary>
-        <ul class="hint-list">
-          ${unlockedNodes.map((node) => `<li>${formatNodeLabel(node)}</li>`).join("")}
-        </ul>
-      </details>
-
-      <details class="lesson-box compact" open>
-        <summary>Missoes desbloqueadas</summary>
-        <ul class="hint-list">
-          ${unlockedMissions
-            .map(
-              (mission) =>
-                `<li>${formatMissionLabel(mission)} (${mission.isCompleted ? "concluida" : "ativa"})</li>`
-            )
-            .join("") || "<li>Nenhuma missao desbloqueada ainda.</li>"}
-        </ul>
-      </details>
-
-      <details class="lesson-box compact" open>
-        <summary>Recursos de programacao liberados</summary>
-        <ul class="hint-list">
-          ${unlockedFeatures.map((feature) => `<li>${featureLabel(feature)}</li>`).join("") || "<li>Nenhum recurso extra liberado ainda.</li>"}
-        </ul>
-      </details>
+    <section class="dev-branch">
+      <h4>${title}</h4>
+      <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
+      <div class="dev-branch-grid" data-dev-branch="${branchId}">
+        ${(tracks || [])
+          .map((track) => {
+            const selectedClass = selectedTrackId === track.id ? "is-selected" : "";
+            const stateClass = track.isCompleted ? "is-completed" : track.isUnlocked ? "is-unlocked" : "is-locked";
+            const status = track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado";
+            const nextTitle = track.nextItem ? track.nextItem.title : "Todos os niveis concluidos";
+            return `
+              <article
+                class="dev-card ${stateClass} ${selectedClass}"
+                data-dev-track-id="${track.id}"
+              >
+                <p class="muted">Progresso ${track.progressLabel}</p>
+                <h5>${track.title}</h5>
+                <p class="muted">${track.description}</p>
+                <p class="muted">Proximo: ${nextTitle}</p>
+                <div class="badge-row">
+                  <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">${status}</span>
+                </div>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
     </section>
   `;
 }
 
-function renderCurrentLearning(current, treeNodes) {
-  const currentNode = treeNodes.find((node) => node.id === current.id);
-  const firstMission = currentNode && currentNode.missions && currentNode.missions.length ? currentNode.missions[0] : null;
-
-  if (!firstMission || !firstMission.lesson) {
-    return "";
+function renderDevTrackDetail(track, options = {}) {
+  if (!track) {
+    return `
+      <section class="mission-card dev-upgrade-detail" data-selected-dev-upgrade-id="">
+        <h4>Detalhes de Upgrade</h4>
+        <p class="muted">Clique em um card para abrir os detalhes da trilha progressiva.</p>
+      </section>
+    `;
   }
 
-  const lesson = firstMission.lesson;
+  const item = track.nextItem;
+  const requirements = item
+    ? formatDevRequirements(item, {
+        devById: options.devById,
+        worldById: options.worldById,
+      })
+    : "Sem requisito adicional";
+  const missing =
+    item && Object.entries(item.missingCosts || {}).length
+      ? Object.entries(item.missingCosts || {})
+          .map(([id, qty]) => `${itemLabel(id)}: ${qty}`)
+          .join(" | ")
+      : "Nada pendente";
+  const canBuy = Boolean(item && !track.isCompleted && track.isUnlocked && track.canAfford);
+  const unlocks = item ? (item.unlocks || []).map(featureLabel).join(" | ") || "Sem feature direta" : "Sem feature direta";
+  const buyKind = track.kind === "world-track" ? "world" : "dev";
+  const buyTargetId = item ? item.id : "";
+  const lockFeedback = buildLockFeedback(item, {
+    devById: options.devById,
+    worldById: options.worldById,
+  });
+
+  if (item && !track.isCompleted && !track.isUnlocked && !lockFeedback.blockedReasons.length) {
+    lockFeedback.blockedReasons.push("Este upgrade ainda nao esta disponivel.");
+  }
+
+  if (item && !track.isCompleted && track.isUnlocked && !track.canAfford) {
+    lockFeedback.unlockSteps.push("Colete os itens faltantes e tente novamente.");
+  }
+
+  const blockedDetails = lockFeedback.blockedReasons.length
+    ? lockFeedback.blockedReasons.map((line) => `<li>${line}</li>`).join("")
+    : "<li>Nenhum bloqueio identificado.</li>";
+  const unlockStepsDetails = lockFeedback.unlockSteps.length
+    ? lockFeedback.unlockSteps.map((line) => `<li>${line}</li>`).join("")
+    : "<li>Sem acao adicional no momento.</li>";
+
   return `
-    <section class="mission-card">
-      <h4>Como Programar Nesta Etapa</h4>
-      <p>${lesson.summary}</p>
-      <p class="muted">Sintaxe</p>
-      <pre class="code-mini">${lesson.syntax}</pre>
-      <p class="muted">Exemplo pratico</p>
-      <pre class="code-mini">${lesson.example}</pre>
-      <ul class="hint-list">
-        ${(lesson.hints || []).map((hint) => `<li>${hint}</li>`).join("")}
-      </ul>
+    <section class="mission-card dev-upgrade-detail" data-selected-dev-upgrade-id="${track.id}">
+      <h4>${track.title} ${track.progressLabel}</h4>
+      <p class="muted">Ramo: ${track.branchId === "game" ? "Jogo" : "Codigo"}</p>
+      <p>${track.description}</p>
+      <p class="muted">Proximo upgrade: ${item ? item.title : "Concluido"}</p>
+      <p>${item ? item.description : "Todos os niveis desta trilha ja foram comprados."}</p>
+      ${item && !track.isCompleted && !track.isUnlocked ? `<p><strong>Para liberar este upgrade:</strong> siga os passos abaixo.</p>` : ""}
+      <p class="muted">Requisitos: ${requirements}</p>
+      <p class="muted">Consumo: ${formatCostList(item ? item.costs : {})}</p>
+      <p class="muted">Faltando: ${missing}</p>
+      <p class="muted">Desbloqueia: ${unlocks}</p>
+      <details class="lesson-box compact" open>
+        <summary>Por que esta bloqueado?</summary>
+        <ul class="hint-list">${blockedDetails}</ul>
+      </details>
+      <details class="lesson-box compact" open>
+        <summary>O que fazer para desbloquear</summary>
+        <ul class="hint-list">${unlockStepsDetails}</ul>
+      </details>
+      <div class="badge-row">
+        <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">
+          ${track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado"}
+        </span>
+      </div>
+      <button
+        class="btn btn-primary"
+        data-dev-action="buy"
+        data-dev-buy-kind="${buyKind}"
+        data-dev-upgrade-id="${buyTargetId}"
+        ${canBuy ? "" : "disabled"}
+      >
+        ${track.isCompleted ? "Ja concluido" : "Comprar proximo nivel"}
+      </button>
+    </section>
+  `;
+}
+
+function renderDevTreePage(devTree, worldUpgrades, selectedTrackId) {
+  const tracksByBranch = buildDevTracks(devTree, worldUpgrades);
+  const allTracks = [...(tracksByBranch.game || []), ...(tracksByBranch.code || [])];
+
+  const allDevItems = [...(devTree.game || []), ...(devTree.code || [])];
+  const devById = new Map(allDevItems.map((item) => [item.id, item]));
+  const worldById = new Map((worldUpgrades || []).map((item) => [item.id, item]));
+  const selectedTrack = allTracks.find((track) => track.id === selectedTrackId) || null;
+
+  const detailHtml = renderDevTrackDetail(selectedTrack, {
+    devById,
+    worldById,
+  });
+
+  return `
+    <section class="dev-tree-layout">
+      <section class="mission-card">
+        <h3>Arvore Completa de Desenvolvimento</h3>
+        <p class="muted">Nova arvore separada da arvore de missoes, com trilhas progressivas no mesmo card.</p>
+        ${renderDevBranch("Ramo Jogo", "game", tracksByBranch.game, selectedTrackId)}
+        ${renderDevBranch("Ramo Codigo", "code", tracksByBranch.code, selectedTrackId)}
+      </section>
+      ${detailHtml}
     </section>
   `;
 }
@@ -443,17 +824,86 @@ function renderTree(treeNodes) {
   `;
 }
 
+function renderUnlockedOverview(treeNodes, unlockedFeatures) {
+  const unlockedNodes = treeNodes.filter((node) => node.isUnlocked);
+  const unlockedMissions = treeNodes
+    .flatMap((node) => node.missions || [])
+    .filter((mission) => mission.isUnlocked);
+  const completedMissions = unlockedMissions.filter((mission) => mission.isCompleted);
+
+  return `
+    <section class="mission-card">
+      <h4>Tudo Que Ja Esta Liberado</h4>
+      <p class="muted">Nos desbloqueados: ${unlockedNodes.length} | Missoes desbloqueadas: ${unlockedMissions.length} | Missoes concluidas: ${completedMissions.length}</p>
+
+      <details class="lesson-box compact" open>
+        <summary>Nos desbloqueados</summary>
+        <ul class="hint-list">
+          ${unlockedNodes.map((node) => `<li>${formatNodeLabel(node)}</li>`).join("")}
+        </ul>
+      </details>
+
+      <details class="lesson-box compact" open>
+        <summary>Missoes desbloqueadas</summary>
+        <ul class="hint-list">
+          ${unlockedMissions
+            .map(
+              (mission) =>
+                `<li>${formatMissionLabel(mission)} (${mission.isCompleted ? "concluida" : "ativa"})</li>`
+            )
+            .join("") || "<li>Nenhuma missao desbloqueada ainda.</li>"}
+        </ul>
+      </details>
+
+      <details class="lesson-box compact" open>
+        <summary>Recursos de programacao liberados</summary>
+        <ul class="hint-list">
+          ${unlockedFeatures.map((feature) => `<li>${featureLabel(feature)}</li>`).join("") || "<li>Nenhum recurso extra liberado ainda.</li>"}
+        </ul>
+      </details>
+    </section>
+  `;
+}
+
+function renderCurrentLearning(current, treeNodes) {
+  const currentNode = treeNodes.find((node) => node.id === current.id);
+  const firstMission = currentNode && currentNode.missions && currentNode.missions.length ? currentNode.missions[0] : null;
+
+  if (!firstMission || !firstMission.lesson) {
+    return "";
+  }
+
+  const lesson = firstMission.lesson;
+  return `
+    <section class="mission-card">
+      <h4>Como Programar Nesta Etapa</h4>
+      <p>${lesson.summary}</p>
+      <p class="muted">Sintaxe</p>
+      <pre class="code-mini">${lesson.syntax}</pre>
+      <p class="muted">Exemplo pratico</p>
+      <pre class="code-mini">${lesson.example}</pre>
+      <ul class="hint-list">
+        ${(lesson.hints || []).map((hint) => `<li>${hint}</li>`).join("")}
+      </ul>
+    </section>
+  `;
+}
 export function createProgressionUI({ gamePhases, onLog }) {
   const openModalBtn = document.querySelector("#openProgressModalBtn");
   const closeModalBtn = document.querySelector("#closeProgressModalBtn");
   const openPageBtn = document.querySelector("#openProgressPageBtn");
   const closePageBtn = document.querySelector("#closeProgressPageBtn");
+  const openDevTreeBtn = document.querySelector("#openDevTreePageBtn");
+  const closeDevTreeBtn = document.querySelector("#closeDevTreePageBtn");
 
   const progressModal = document.querySelector("#progressModal");
   const progressPage = document.querySelector("#progressPage");
+  const devTreePage = document.querySelector("#devTreePage");
   const modalContent = document.querySelector("#progressModalContent");
   const pageContent = document.querySelector("#progressPageContent");
+  const devTreeContent = document.querySelector("#devTreePageContent");
   let cleanupInteractiveTree = null;
+  let selectedDevTrackId = null;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -666,6 +1116,36 @@ export function createProgressionUI({ gamePhases, onLog }) {
     progressPage.setAttribute("aria-hidden", "true");
   }
 
+  function openDevPage() {
+    devTreePage.classList.add("is-open");
+    devTreePage.setAttribute("aria-hidden", "false");
+    renderDevPage();
+  }
+
+  function closeDevPage() {
+    devTreePage.classList.remove("is-open");
+    devTreePage.setAttribute("aria-hidden", "true");
+  }
+
+  function renderDevPage() {
+    const devTree = gamePhases.getDevTree();
+    const worldUpgrades = typeof gamePhases.getWorldUpgrades === "function" ? gamePhases.getWorldUpgrades() : [];
+    const tracksByBranch = buildDevTracks(devTree, worldUpgrades);
+    const allTracks = [...(tracksByBranch.game || []), ...(tracksByBranch.code || [])];
+
+    if (!selectedDevTrackId && allTracks.length > 0) {
+      const initial = allTracks.find((track) => track.nextItem && track.isUnlocked && !track.isCompleted) || allTracks[0];
+      selectedDevTrackId = initial.id;
+    }
+
+    const stillExists = allTracks.some((track) => track.id === selectedDevTrackId);
+    if (!stillExists && allTracks.length > 0) {
+      selectedDevTrackId = allTracks[0].id;
+    }
+
+    devTreeContent.innerHTML = renderDevTreePage(devTree, worldUpgrades, selectedDevTrackId);
+  }
+
   function render() {
     const current = gamePhases.getCurrentPhase();
     const tree = gamePhases.getMissionTree();
@@ -696,6 +1176,12 @@ export function createProgressionUI({ gamePhases, onLog }) {
   closeModalBtn.addEventListener("click", closeModal);
   openPageBtn.addEventListener("click", openPage);
   closePageBtn.addEventListener("click", closePage);
+  if (openDevTreeBtn) {
+    openDevTreeBtn.addEventListener("click", openDevPage);
+  }
+  if (closeDevTreeBtn) {
+    closeDevTreeBtn.addEventListener("click", closeDevPage);
+  }
 
   progressModal.addEventListener("click", (event) => {
     if (event.target === progressModal) closeModal();
@@ -705,8 +1191,44 @@ export function createProgressionUI({ gamePhases, onLog }) {
     if (event.key === "Escape") {
       closeModal();
       closePage();
+      closeDevPage();
     }
   });
+
+  if (devTreePage && devTreeContent) {
+    devTreePage.addEventListener("click", (event) => {
+      if (event.target === devTreePage) closeDevPage();
+    });
+
+    devTreeContent.addEventListener("click", (event) => {
+      const buyEl = event.target.closest("[data-dev-action='buy']");
+      if (buyEl) {
+        const buyKind = buyEl.dataset.devBuyKind;
+        const upgradeId = buyEl.dataset.devUpgradeId;
+        if (!upgradeId) return;
+        const result =
+          buyKind === "world"
+            ? gamePhases.purchaseWorldUpgrade(upgradeId)
+            : gamePhases.purchaseDevUpgrade(upgradeId);
+        if (typeof onLog === "function") {
+          if (result.ok) {
+            onLog(`Upgrade aplicado: ${upgradeId}`);
+          } else {
+            onLog(`Falha no upgrade ${upgradeId}: ${result.reason}`);
+          }
+        }
+        renderDevPage();
+        render();
+        return;
+      }
+
+      const cardEl = event.target.closest("[data-dev-track-id]");
+      if (cardEl) {
+        selectedDevTrackId = cardEl.dataset.devTrackId || null;
+        renderDevPage();
+      }
+    });
+  }
 
   if (typeof onLog === "function") {
     onLog("UI de progresso habilitada: modal rapido + pagina completa.");
@@ -717,6 +1239,9 @@ export function createProgressionUI({ gamePhases, onLog }) {
     closeModal,
     openPage,
     closePage,
+    openDevPage,
+    closeDevPage,
     render,
+    renderDevPage,
   };
 }

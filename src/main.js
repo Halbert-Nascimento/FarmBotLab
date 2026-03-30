@@ -271,6 +271,11 @@ function renderInventoryHud() {
 
 const gamePhases = createGamePhases({
   onLog: logger.append,
+  onWorldStateChanged: ({ width, height }) => {
+    if (Number.isFinite(width) && Number.isFinite(height)) {
+      applyWorldDimensions(width, height, "world-upgrade");
+    }
+  },
   onPhaseChanged: ({ phase }) => {
     logger.append(`No atual: ${phase.title}`);
     logger.append(`Progresso geral: ${phase.progressLabel}`);
@@ -489,6 +494,7 @@ window.gamePhases = {
   getItemInventory: () => gamePhases.getItemInventory(),
   getWorldState: () => gamePhases.getWorldState(),
   getWorldUpgrades: () => gamePhases.getWorldUpgrades(),
+  getDevTree: () => gamePhases.getDevTree(),
   buyWorldUpgrade: (upgradeId) => {
     const purchase = gamePhases.purchaseWorldUpgrade(upgradeId);
     if (!purchase.ok) {
@@ -503,6 +509,11 @@ window.gamePhases = {
 
     renderInventoryHud();
 
+    return purchase;
+  },
+  buyDevUpgrade: (upgradeId) => {
+    const purchase = gamePhases.purchaseDevUpgrade(upgradeId);
+    renderInventoryHud();
     return purchase;
   },
   advance: () => gamePhases.advancePhase("manual-console"),
