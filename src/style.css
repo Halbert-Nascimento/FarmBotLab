@@ -372,9 +372,7 @@ body {
 
 .inventory-item-float {
   position: absolute;
-  top: 40px;
-  left: 0;
-  width: min(360px, calc(100vw - 32px));
+  width: min(320px, calc(100vw - 32px));
   border: 1px solid rgba(140, 79, 47, 0.35);
   border-radius: 12px;
   background: rgba(244, 241, 230, 0.9);

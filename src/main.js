@@ -79,6 +79,10 @@ const INVENTORY_MODES = {
   OVERLAY: "overlay",
 };
 
+const INVENTORY_FLOAT_CARD_WIDTH = 320;
+const INVENTORY_FLOAT_CARD_HEIGHT = 170;
+const INVENTORY_FLOAT_GAP = 10;
+
 function debugAlert(message) {
   if (!DEBUG_ALERTS) return;
   alert(`[DEBUG] ${message}`);
@@ -89,6 +93,33 @@ const logger = createLogger(logEl);
 let progressionUI = null;
 let inventoryHudEventsBound = false;
 let selectedInventoryItemId = null;
+let selectedInventoryFloatPosition = { left: 0, top: 0 };
+
+function computeInventoryFloatPosition(itemEl) {
+  if (!inventoryHudEl || !itemEl) {
+    return { left: 0, top: 0 };
+  }
+
+  const hudRect = inventoryHudEl.getBoundingClientRect();
+  const itemRect = itemEl.getBoundingClientRect();
+
+  const maxLeft = Math.max(0, hudRect.width - INVENTORY_FLOAT_CARD_WIDTH - 8);
+  let left = itemRect.right - hudRect.left + INVENTORY_FLOAT_GAP;
+
+  if (left > maxLeft) {
+    left = itemRect.left - hudRect.left - INVENTORY_FLOAT_CARD_WIDTH - INVENTORY_FLOAT_GAP;
+  }
+
+  left = Math.max(0, Math.min(left, maxLeft));
+
+  const maxTop = Math.max(0, hudRect.height - INVENTORY_FLOAT_CARD_HEIGHT - 8);
+  const top = Math.max(0, Math.min(itemRect.top - hudRect.top, maxTop));
+
+  return {
+    left: Math.round(left),
+    top: Math.round(top),
+  };
+}
 
 function loadInventoryUiSettings() {
   try {
@@ -134,7 +165,12 @@ function bindInventoryHudEvents() {
     const itemEl = event.target.closest("[data-inventory-item]");
     if (itemEl) {
       const itemId = itemEl.dataset.inventoryItem;
-      selectedInventoryItemId = selectedInventoryItemId === itemId ? null : itemId;
+      if (selectedInventoryItemId === itemId) {
+        selectedInventoryItemId = null;
+      } else {
+        selectedInventoryItemId = itemId;
+        selectedInventoryFloatPosition = computeInventoryFloatPosition(itemEl);
+      }
       renderInventoryHud();
       return;
     }
@@ -178,6 +214,7 @@ function renderInventoryHud() {
   const selectedDesc =
     INVENTORY_ITEM_RULE_HINTS[selectedInventoryItemId] ||
     "Regra futura: definir pre-requisito para liberar este plantio.";
+  const selectedFloatStyle = `left:${selectedInventoryFloatPosition.left}px;top:${selectedInventoryFloatPosition.top}px;`;
 
   inventoryHudEl.className = `inventory-hud ${modeClass} ${expandedClass} ${
     inventoryUiSettings.collapsed ? "is-collapsed" : ""
@@ -217,7 +254,7 @@ function renderInventoryHud() {
         .join("")}
     </div>
     ${selectedInventoryItemId
-      ? `<div class="inventory-item-float">
+      ? `<div class="inventory-item-float" style="${selectedFloatStyle}">
           <button class="btn inventory-float-close" data-inventory-action="close-item-detail">Fechar</button>
           <div class="inventory-item-float-head">
             <span class="item-icon">${selectedIcon}</span>
