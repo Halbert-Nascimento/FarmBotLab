@@ -895,6 +895,26 @@ body {
   gap: 8px;
 }
 
+.dev-track-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.dev-track-group {
+  border: 1px dashed rgba(61, 54, 44, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 8px;
+}
+
+.dev-track-group h5 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
 .dev-card {
   border: 1px solid rgba(61, 54, 44, 0.22);
   border-radius: 10px;

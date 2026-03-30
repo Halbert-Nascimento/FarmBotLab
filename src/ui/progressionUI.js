@@ -441,34 +441,91 @@ function buildDevTracks(devTree, worldUpgrades) {
   };
 }
 
+function renderDevTrackCard(track, selectedTrackId) {
+  const selectedClass = selectedTrackId === track.id ? "is-selected" : "";
+  const stateClass = track.isCompleted ? "is-completed" : track.isUnlocked ? "is-unlocked" : "is-locked";
+  const status = track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado";
+  const nextTitle = track.nextItem ? track.nextItem.title : "Todos os niveis concluidos";
+  return `
+    <article
+      class="dev-card ${stateClass} ${selectedClass}"
+      data-dev-track-id="${track.id}"
+    >
+      <p class="muted">Progresso ${track.progressLabel}</p>
+      <h5>${track.title}</h5>
+      <p class="muted">${track.description}</p>
+      <p class="muted">Proximo: ${nextTitle}</p>
+      <div class="badge-row">
+        <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">${status}</span>
+      </div>
+    </article>
+  `;
+}
+
+function groupGameTracks(tracks) {
+  const groups = {
+    expansao: [],
+    culturas: [],
+    drone: [],
+    sistema: [],
+  };
+
+  (tracks || []).forEach((track) => {
+    const id = track.id || "";
+    if (id === "track.world.size") {
+      groups.expansao.push(track);
+      return;
+    }
+    if (id.startsWith("track.upg.crop.")) {
+      groups.culturas.push(track);
+      return;
+    }
+    if (id.startsWith("track.upg.drone.")) {
+      groups.drone.push(track);
+      return;
+    }
+    groups.sistema.push(track);
+  });
+
+  return [
+    { id: "expansao", title: "Expansao", tracks: groups.expansao },
+    { id: "culturas", title: "Culturas", tracks: groups.culturas },
+    { id: "drone", title: "Drone", tracks: groups.drone },
+    { id: "sistema", title: "Sistema", tracks: groups.sistema },
+  ].filter((group) => group.tracks.length > 0);
+}
+
 function renderDevBranch(title, branchId, tracks, selectedTrackId) {
+  if (branchId === "game") {
+    const groups = groupGameTracks(tracks);
+    return `
+      <section class="dev-branch">
+        <h4>${title}</h4>
+        <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
+        <div class="dev-track-groups" data-dev-branch="${branchId}">
+          ${groups
+            .map(
+              (group) => `
+            <section class="dev-track-group" data-track-group="${group.id}">
+              <h5>${group.title}</h5>
+              <div class="dev-branch-grid">
+                ${group.tracks.map((track) => renderDevTrackCard(track, selectedTrackId)).join("")}
+              </div>
+            </section>
+          `
+            )
+            .join("")}
+        </div>
+      </section>
+    `;
+  }
+
   return `
     <section class="dev-branch">
       <h4>${title}</h4>
       <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
       <div class="dev-branch-grid" data-dev-branch="${branchId}">
-        ${(tracks || [])
-          .map((track) => {
-            const selectedClass = selectedTrackId === track.id ? "is-selected" : "";
-            const stateClass = track.isCompleted ? "is-completed" : track.isUnlocked ? "is-unlocked" : "is-locked";
-            const status = track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado";
-            const nextTitle = track.nextItem ? track.nextItem.title : "Todos os niveis concluidos";
-            return `
-              <article
-                class="dev-card ${stateClass} ${selectedClass}"
-                data-dev-track-id="${track.id}"
-              >
-                <p class="muted">Progresso ${track.progressLabel}</p>
-                <h5>${track.title}</h5>
-                <p class="muted">${track.description}</p>
-                <p class="muted">Proximo: ${nextTitle}</p>
-                <div class="badge-row">
-                  <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">${status}</span>
-                </div>
-              </article>
-            `;
-          })
-          .join("")}
+        ${(tracks || []).map((track) => renderDevTrackCard(track, selectedTrackId)).join("")}
       </div>
     </section>
   `;
