@@ -643,67 +643,68 @@ if (themeSelect) {
   });
 }
 
-// ─── Modal de Customização de Tema ──────────────────────────────────────────
+// ─── Sistema de Abas do Painel de Código ───────────────────────────────────
 
-const openThemeCustomizerBtn = document.querySelector("#openThemeCustomizerBtn");
-const closeThemeCustomizerBtn = document.querySelector("#closeThemeCustomizerBtn");
-const themeCustomizerModal = document.querySelector("#themeCustomizerModal");
+function initCodePanelTabs() {
+  const tabButtons = document.querySelectorAll(".code-tab-btn");
+  const tabContents = document.querySelectorAll(".code-tab-content");
+  const codeActions = document.querySelector("#codeActions");
 
-if (openThemeCustomizerBtn) {
-  openThemeCustomizerBtn.addEventListener("click", () => {
-    if (themeCustomizerModal) {
-      themeCustomizerModal.setAttribute("aria-hidden", "false");
-      themeCustomizerModal.style.display = "flex";
-
-      // Sincroniza os inputs com as preferências atuais
-      const paletteRadios = themeCustomizerModal.querySelectorAll('input[name="palette"]');
-      const accentRadios = themeCustomizerModal.querySelectorAll('input[name="accent"]');
-
-      paletteRadios.forEach(radio => {
-        radio.checked = radio.value === currentPalette;
-      });
-
-      accentRadios.forEach(radio => {
-        radio.checked = radio.value === currentAccent;
-      });
+  function updateActionsVisibility(tabName) {
+    // Mostra botões de ação apenas na aba de código
+    if (codeActions) {
+      codeActions.style.display = tabName === "code-editor" ? "flex" : "none";
     }
-  });
-}
+  }
 
-if (closeThemeCustomizerBtn) {
-  closeThemeCustomizerBtn.addEventListener("click", () => {
-    if (themeCustomizerModal) {
-      themeCustomizerModal.setAttribute("aria-hidden", "true");
-      themeCustomizerModal.style.display = "none";
-    }
-  });
-}
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tabName = btn.dataset.tab;
 
-// Fechar ao clicar no background
-if (themeCustomizerModal) {
-  themeCustomizerModal.addEventListener("click", (event) => {
-    if (event.target === themeCustomizerModal) {
-      themeCustomizerModal.setAttribute("aria-hidden", "true");
-      themeCustomizerModal.style.display = "none";
-    }
-  });
+      // Remove "is-active" de todos os botões e conteúdos
+      tabButtons.forEach(b => b.classList.remove("is-active"));
+      tabContents.forEach(c => c.classList.remove("is-active"));
 
-  // Event listeners para paletas
-  const paletteRadios = themeCustomizerModal.querySelectorAll('input[name="palette"]');
-  paletteRadios.forEach(radio => {
-    radio.addEventListener("change", () => {
-      applyPalette(radio.value);
+      // Adiciona "is-active" ao botão e conteúdo clicados
+      btn.classList.add("is-active");
+      document.getElementById(`${tabName}-tab`).classList.add("is-active");
+
+      // Atualiza visibilidade dos botões de ação
+      updateActionsVisibility(tabName);
+
+      // Dispara redimensionamento do editor se for a aba de código
+      if (tabName === "code-editor" && typeof editor !== "undefined" && editor) {
+        setTimeout(() => editor.resize?.(), 50);
+      }
     });
   });
 
-  // Event listeners para acentos
-  const accentRadios = themeCustomizerModal.querySelectorAll('input[name="accent"]');
-  accentRadios.forEach(radio => {
-    radio.addEventListener("change", () => {
-      applyAccent(radio.value);
+  // Inicializa visibilidade dos botões (aba de código começa ativa)
+  updateActionsVisibility("code-editor");
+
+  // Sincroniza inputs de configurações com preferências atuais
+  const settingsTab = document.getElementById("code-settings-tab");
+  if (settingsTab) {
+    const paletteRadios = settingsTab.querySelectorAll('input[name="palette"]');
+    const accentRadios = settingsTab.querySelectorAll('input[name="accent"]');
+
+    paletteRadios.forEach(radio => {
+      radio.checked = radio.value === currentPalette;
+      radio.addEventListener("change", () => {
+        applyPalette(radio.value);
+      });
     });
-  });
+
+    accentRadios.forEach(radio => {
+      radio.checked = radio.value === currentAccent;
+      radio.addEventListener("change", () => {
+        applyAccent(radio.value);
+      });
+    });
+  }
 }
+
+initCodePanelTabs();
 
 if (clearLogBtn) {
   clearLogBtn.addEventListener("click", () => {
