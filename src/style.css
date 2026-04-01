@@ -471,63 +471,6 @@ body {
 }
 
 /* ============================================================
-   STATS HUD (NOVO)
-   ============================================================ */
-
-.stats-hud {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-}
-
-.stat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-bg-surface);
-  padding: 5px 11px;
-  font-size: 0.82rem;
-  backdrop-filter: blur(6px);
-  white-space: nowrap;
-  box-shadow: 0 2px 6px var(--color-shadow);
-}
-
-.stat-chip--mission {
-  gap: 6px;
-}
-
-.stat-icon {
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.stat-label {
-  opacity: 0.6;
-  font-size: 0.74rem;
-}
-
-.stat-value {
-  font-weight: 700;
-  color: var(--color-accent);
-  font-size: 0.85rem;
-}
-
-.stat-value--mission {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 140px;
-  display: inline-block;
-  vertical-align: middle;
-  font-weight: 600;
-  font-size: 0.8rem;
-}
-
-/* ============================================================
    GRID PRINCIPAL
    ============================================================ */
 
@@ -804,10 +747,45 @@ body {
   position: relative;
 }
 
-.scene-controls {
+.scene-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px !important;
+  background: var(--color-hud-bg) !important;
+  backdrop-filter: blur(4px);
+}
+
+.scene-stats-mini {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.stat-mini {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.stat-mini span {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.stat-mini--mission span {
+  color: var(--color-accent);
+}
+
+.scene-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .scene-controls-sep {
@@ -821,7 +799,7 @@ body {
 .avatar-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -2042,13 +2020,6 @@ body {
   .topbar {
     grid-template-columns: 1fr;
     gap: 8px;
-  }
-
-  .stats-hud {
-    justify-content: flex-start;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 2px;
   }
 
   .topbar-actions {

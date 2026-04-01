@@ -39,10 +39,11 @@ const scenePanelEl = document.querySelector(".scene-panel");
 const themeToggleBtn = document.querySelector("#themeToggleBtn");
 const themeSelect    = document.querySelector("#themeSelect");
 const clearLogBtn    = document.querySelector("#clearLogBtn");
-const statMovesEl = document.querySelector("#statMovesValue");
-const statPlantsEl = document.querySelector("#statPlantsValue");
-const statHarvestsEl = document.querySelector("#statHarvestsValue");
-const statMissionEl = document.querySelector("#statMissionValue");
+// Stats na cena
+const sceneStatMoves = document.querySelector("#sceneStatMoves");
+const sceneStatPlants = document.querySelector("#sceneStatPlants");
+const sceneStatHarvests = document.querySelector("#sceneStatHarvests");
+const sceneStatMission = document.querySelector("#sceneStatMission");
 
 const THEME_STORAGE_KEY = "farmbot.theme";
 
@@ -184,10 +185,11 @@ function updateStatsHud() {
   const activeMissions = gamePhases.getActiveMissions(1);
   const missionTitle = activeMissions.length ? activeMissions[0].title : phase.title || "—";
 
-  if (statMovesEl)    statMovesEl.textContent    = stats.moves    ?? 0;
-  if (statPlantsEl)   statPlantsEl.textContent   = stats.plants   ?? 0;
-  if (statHarvestsEl) statHarvestsEl.textContent = stats.harvests ?? 0;
-  if (statMissionEl)  statMissionEl.textContent  = missionTitle;
+  // Atualiza stats na cena
+  if (sceneStatMoves)    sceneStatMoves.textContent    = stats.moves    ?? 0;
+  if (sceneStatPlants)   sceneStatPlants.textContent   = stats.plants   ?? 0;
+  if (sceneStatHarvests) sceneStatHarvests.textContent = stats.harvests ?? 0;
+  if (sceneStatMission)  sceneStatMission.textContent  = missionTitle;
 }
 
 // ─── Estado dos botões Executar / Parar ──────────────────────────────────────
