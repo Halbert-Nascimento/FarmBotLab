@@ -289,16 +289,23 @@ body {
   gap: 10px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-hud-bg);       /* fundo suave, separa visualmente do editor */
+  backdrop-filter: blur(4px);
 }
 
 .panel-head h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-secondary);    /* rótulo de seção — sem competir com o conteúdo */
 }
 
 .actions {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 /* ============================================================
@@ -524,21 +531,25 @@ body {
 .scene-controls {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.zoom-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+.scene-controls-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--color-border-strong);
+  flex-shrink: 0;
 }
 
+.zoom-wrap,
 .avatar-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.03em;
 }
 
 #avatarSelect {
@@ -546,8 +557,25 @@ body {
   border-radius: 8px;
   background: var(--color-bg-surface-raised);
   color: var(--color-text-primary);
-  padding: 4px 8px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+#avatarSelect:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* Zoom slider — usa accent-color (suporte Chrome 93+/FF 92+/Edge 93+) *
+ * para combinar com o tema sem JS extra.                              */
+#zoomSlider {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  width: 88px;
+  height: 4px;
 }
 
 /* ============================================================
