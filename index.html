@@ -64,6 +64,7 @@
               <option value="floresta">🌿 Floresta</option>
               <option value="noite">🌙 Noite</option>
             </select>
+            <button id="openThemeCustomizerBtn" class="btn btn-icon" aria-label="Personalizar tema" title="Personalizar cores">🎨</button>
           </div>
           <button id="openProgressModalBtn" class="btn">Progresso Rápido</button>
           <button id="openProgressPageBtn" class="btn btn-primary">Árvore de Missões</button>
@@ -171,6 +172,122 @@
           <button id="closeDevTreePageBtn" class="btn btn-ghost btn-sm">← Voltar ao Jogo</button>
         </div>
         <div id="devTreePageContent" class="progress-content"></div>
+      </section>
+    </div>
+
+    <!-- MODAL: Personalizar Tema -->
+    <div id="themeCustomizerModal" class="progress-overlay" aria-hidden="true">
+      <section class="progress-surface theme-customizer-modal" role="dialog" aria-label="Personalizar tema">
+        <div class="progress-head">
+          <h3>Personalizar Tema</h3>
+          <button id="closeThemeCustomizerBtn" class="btn btn-ghost btn-sm">✕ Fechar</button>
+        </div>
+        <div class="theme-customizer-content">
+          <!-- Seletor de Paleta -->
+          <div class="customizer-section">
+            <h4>Paleta de Cores</h4>
+            <div id="paletteOptions" class="customizer-options">
+              <label class="customizer-option">
+                <input type="radio" name="palette" value="neutral-modern" />
+                <span class="option-label">Neutral Modern</span>
+                <span class="option-desc">Limpo e profissional</span>
+              </label>
+              <label class="customizer-option">
+                <input type="radio" name="palette" value="earthy-modern" />
+                <span class="option-label">Earthy Modern</span>
+                <span class="option-desc">Identidade agrícola</span>
+              </label>
+              <label class="customizer-option">
+                <input type="radio" name="palette" value="slate-indigo" />
+                <span class="option-label">Slate/Indigo</span>
+                <span class="option-desc">Estilo tech/código</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Seletor de Accent -->
+          <div class="customizer-section">
+            <h4>Cor de Destaque</h4>
+            <div id="accentOptions" class="customizer-accents">
+              <label class="accent-option" data-accent="amber" title="Âmbar">
+                <input type="radio" name="accent" value="amber" />
+                <span class="accent-swatch" style="background: #d97706;"></span>
+                <span class="accent-name">Âmbar</span>
+              </label>
+              <label class="accent-option" data-accent="indigo" title="Índigo">
+                <input type="radio" name="accent" value="indigo" />
+                <span class="accent-swatch" style="background: #4f46e5;"></span>
+                <span class="accent-name">Índigo</span>
+              </label>
+              <label class="accent-option" data-accent="teal" title="Teal">
+                <input type="radio" name="accent" value="teal" />
+                <span class="accent-swatch" style="background: #0d9488;"></span>
+                <span class="accent-name">Teal</span>
+              </label>
+              <label class="accent-option" data-accent="orange" title="Laranja">
+                <input type="radio" name="accent" value="orange" />
+                <span class="accent-swatch" style="background: #ea580c;"></span>
+                <span class="accent-name">Laranja</span>
+              </label>
+              <label class="accent-option" data-accent="emerald" title="Esmeralda">
+                <input type="radio" name="accent" value="emerald" />
+                <span class="accent-swatch" style="background: #10b981;"></span>
+                <span class="accent-name">Esmeralda</span>
+              </label>
+              <label class="accent-option" data-accent="ruby" title="Rubi">
+                <input type="radio" name="accent" value="ruby" />
+                <span class="accent-swatch" style="background: #e11d48;"></span>
+                <span class="accent-name">Rubi</span>
+              </label>
+              <label class="accent-option" data-accent="sky" title="Azul Céu">
+                <input type="radio" name="accent" value="sky" />
+                <span class="accent-swatch" style="background: #0ea5e9;"></span>
+                <span class="accent-name">Azul Céu</span>
+              </label>
+              <label class="accent-option" data-accent="violet" title="Ametista">
+                <input type="radio" name="accent" value="violet" />
+                <span class="accent-swatch" style="background: #8b5cf6;"></span>
+                <span class="accent-name">Ametista</span>
+              </label>
+              <label class="accent-option" data-accent="gold" title="Ouro">
+                <input type="radio" name="accent" value="gold" />
+                <span class="accent-swatch" style="background: #ca8a04;"></span>
+                <span class="accent-name">Ouro</span>
+              </label>
+              <label class="accent-option" data-accent="lime" title="Limão">
+                <input type="radio" name="accent" value="lime" />
+                <span class="accent-swatch" style="background: #65a30d;"></span>
+                <span class="accent-name">Limão</span>
+              </label>
+              <label class="accent-option" data-accent="cyan" title="Ciano">
+                <input type="radio" name="accent" value="cyan" />
+                <span class="accent-swatch" style="background: #0891b2;"></span>
+                <span class="accent-name">Ciano</span>
+              </label>
+              <label class="accent-option" data-accent="pink" title="Rosa">
+                <input type="radio" name="accent" value="pink" />
+                <span class="accent-swatch" style="background: #db2777;"></span>
+                <span class="accent-name">Rosa</span>
+              </label>
+              <label class="accent-option" data-accent="carbon" title="Carbono">
+                <input type="radio" name="accent" value="carbon" />
+                <span class="accent-swatch" style="background: #334155;"></span>
+                <span class="accent-name">Carbono</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div class="customizer-section">
+            <h4>Pré-visualização</h4>
+            <div id="themePreview" class="theme-preview">
+              <div class="preview-sample">
+                <button class="btn btn-primary">Botão Principal</button>
+                <button class="btn">Botão Secundário</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
 

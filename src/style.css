@@ -120,6 +120,280 @@
 }
 
 /* ============================================================
+   PALETAS MODERNAS: Neutral, Earthy, Slate/Indigo
+   Combinam com data-theme para definir cores de fundo
+   ============================================================ */
+
+/* ── Paleta: Neutral Modern (padrão para novos usuários) ── */
+[data-palette="neutral-modern"][data-theme="claro"],
+[data-palette="neutral-modern"] {
+  --color-bg-base: #f8f8f9;
+  --color-bg-gradient-b: #f1f2f4;
+  --color-bg-surface: rgba(255, 255, 255, 0.85);
+  --color-bg-surface-raised: rgba(255, 255, 255, 0.95);
+  --color-bg-elevated: #ffffff;
+  --color-text-primary: #111113;
+  --color-text-secondary: #64748b;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+}
+
+[data-palette="neutral-modern"][data-theme="noite"],
+[data-palette="neutral-modern"][data-theme="dark"] {
+  --color-bg-base: #111113;
+  --color-bg-gradient-b: #09090b;
+  --color-bg-surface: rgba(24, 24, 27, 0.90);
+  --color-bg-surface-raised: rgba(39, 39, 42, 0.95);
+  --color-bg-elevated: #27272a;
+  --color-text-primary: #f1f1f3;
+  --color-text-secondary: #a1a1aa;
+  --color-border: #27272a;
+  --color-border-strong: #3f3f46;
+  --color-log-bg: #000000;
+}
+
+/* ── Paleta: Earthy Modern (identidade agrícola) ── */
+[data-palette="earthy-modern"][data-theme="claro"] {
+  --color-bg-base: #f4f2ee;
+  --color-bg-gradient-b: #e8e4dc;
+  --color-bg-surface: rgba(255, 255, 255, 0.82);
+  --color-bg-surface-raised: rgba(255, 255, 255, 0.92);
+  --color-bg-elevated: #faf9f6;
+  --color-text-primary: #1a1917;
+  --color-text-secondary: #78716c;
+  --color-border: #e7e5e4;
+  --color-border-strong: #ddd9d0;
+}
+
+[data-palette="earthy-modern"][data-theme="noite"],
+[data-palette="earthy-modern"][data-theme="dark"] {
+  --color-bg-base: #16181a;
+  --color-bg-gradient-b: #101113;
+  --color-bg-surface: rgba(28, 30, 34, 0.92);
+  --color-bg-surface-raised: rgba(40, 43, 48, 0.95);
+  --color-bg-elevated: #26292e;
+  --color-text-primary: #e8e4dc;
+  --color-text-secondary: #9ca3af;
+  --color-border: #2d3036;
+  --color-border-strong: #3d4149;
+  --color-log-bg: #0c0a09;
+}
+
+/* ── Paleta: Slate/Indigo (tech/código) ── */
+[data-palette="slate-indigo"][data-theme="claro"] {
+  --color-bg-base: #f6f8fa;
+  --color-bg-gradient-b: #ebf0f4;
+  --color-bg-surface: rgba(255, 255, 255, 0.90);
+  --color-bg-surface-raised: rgba(255, 255, 255, 0.97);
+  --color-bg-elevated: #ffffff;
+  --color-text-primary: #24292f;
+  --color-text-secondary: #57606a;
+  --color-border: #d0d7de;
+  --color-border-strong: #c5cdd0;
+}
+
+[data-palette="slate-indigo"][data-theme="noite"],
+[data-palette="slate-indigo"][data-theme="dark"] {
+  --color-bg-base: #0d1117;
+  --color-bg-gradient-b: #010409;
+  --color-bg-surface: rgba(22, 27, 34, 0.92);
+  --color-bg-surface-raised: rgba(33, 38, 45, 0.95);
+  --color-bg-elevated: #21262d;
+  --color-text-primary: #c9d1d9;
+  --color-text-secondary: #8b949e;
+  --color-border: #30363d;
+  --color-border-strong: #3d444d;
+  --color-log-bg: #010409;
+}
+
+/* ============================================================
+   CORES DE DESTAQUE (Accents)
+   Usam variável data-accent para permitir múltiplas cores
+   ============================================================ */
+
+/* Âmbar */
+[data-accent="amber"] {
+  --color-accent: #d97706;
+  --color-accent-hover: #f59e0b;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="amber"],
+[data-theme="dark"][data-accent="amber"] {
+  --color-accent: #f59e0b;
+  --color-accent-hover: #fbbf24;
+  --color-accent-text: #1a1408;
+}
+
+/* Índigo */
+[data-accent="indigo"] {
+  --color-accent: #4f46e5;
+  --color-accent-hover: #6366f1;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="indigo"],
+[data-theme="dark"][data-accent="indigo"] {
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-accent-text: #fff;
+}
+
+/* Teal */
+[data-accent="teal"] {
+  --color-accent: #0d9488;
+  --color-accent-hover: #14b8a6;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="teal"],
+[data-theme="dark"][data-accent="teal"] {
+  --color-accent: #14b8a6;
+  --color-accent-hover: #2dd4bf;
+  --color-accent-text: #042f2e;
+}
+
+/* Laranja */
+[data-accent="orange"] {
+  --color-accent: #ea580c;
+  --color-accent-hover: #f97316;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="orange"],
+[data-theme="dark"][data-accent="orange"] {
+  --color-accent: #f97316;
+  --color-accent-hover: #fb923c;
+  --color-accent-text: #431407;
+}
+
+/* Esmeralda */
+[data-accent="emerald"] {
+  --color-accent: #10b981;
+  --color-accent-hover: #059669;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="emerald"],
+[data-theme="dark"][data-accent="emerald"] {
+  --color-accent: #34d399;
+  --color-accent-hover: #10b981;
+  --color-accent-text: #064e3b;
+}
+
+/* Rubi */
+[data-accent="ruby"] {
+  --color-accent: #e11d48;
+  --color-accent-hover: #be123c;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="ruby"],
+[data-theme="dark"][data-accent="ruby"] {
+  --color-accent: #fb7185;
+  --color-accent-hover: #f43f5e;
+  --color-accent-text: #4c0519;
+}
+
+/* Azul Céu */
+[data-accent="sky"] {
+  --color-accent: #0ea5e9;
+  --color-accent-hover: #0284c7;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="sky"],
+[data-theme="dark"][data-accent="sky"] {
+  --color-accent: #38bdf8;
+  --color-accent-hover: #0ea5e9;
+  --color-accent-text: #082f49;
+}
+
+/* Ametista */
+[data-accent="violet"] {
+  --color-accent: #8b5cf6;
+  --color-accent-hover: #7c3aed;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="violet"],
+[data-theme="dark"][data-accent="violet"] {
+  --color-accent: #a78bfa;
+  --color-accent-hover: #8b5cf6;
+  --color-accent-text: #2e1065;
+}
+
+/* Ouro */
+[data-accent="gold"] {
+  --color-accent: #ca8a04;
+  --color-accent-hover: #a16207;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="gold"],
+[data-theme="dark"][data-accent="gold"] {
+  --color-accent: #facc15;
+  --color-accent-hover: #eab308;
+  --color-accent-text: #422006;
+}
+
+/* Limão */
+[data-accent="lime"] {
+  --color-accent: #65a30d;
+  --color-accent-hover: #4d7c0f;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="lime"],
+[data-theme="dark"][data-accent="lime"] {
+  --color-accent: #a3e635;
+  --color-accent-hover: #84cc16;
+  --color-accent-text: #1a2e05;
+}
+
+/* Ciano */
+[data-accent="cyan"] {
+  --color-accent: #0891b2;
+  --color-accent-hover: #0e7490;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="cyan"],
+[data-theme="dark"][data-accent="cyan"] {
+  --color-accent: #22d3ee;
+  --color-accent-hover: #06b6d4;
+  --color-accent-text: #083344;
+}
+
+/* Rosa */
+[data-accent="pink"] {
+  --color-accent: #db2777;
+  --color-accent-hover: #be185d;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="pink"],
+[data-theme="dark"][data-accent="pink"] {
+  --color-accent: #f472b6;
+  --color-accent-hover: #ec4899;
+  --color-accent-text: #500724;
+}
+
+/* Carbono */
+[data-accent="carbon"] {
+  --color-accent: #334155;
+  --color-accent-hover: #0f172a;
+  --color-accent-text: #fff;
+}
+
+[data-theme="noite"][data-accent="carbon"],
+[data-theme="dark"][data-accent="carbon"] {
+  --color-accent: #e2e8f0;
+  --color-accent-hover: #ffffff;
+  --color-accent-text: #0f172a;
+}
+
+/* ============================================================
    RESET / BASE
    ============================================================ */
 
@@ -949,8 +1223,8 @@ body {
 }
 
 .progress-modal {
-  width: min(860px, 100%);
-  max-height: 85vh;
+  width: min(920px, 100%);
+  max-height: 88vh;
 }
 
 .progress-page-panel {
@@ -974,50 +1248,86 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-hud-bg);
+  backdrop-filter: blur(4px);
 }
 
 .progress-head h2,
 .progress-head h3 {
   margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .progress-content {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
+/* ── Chips de sumário ── */
 .progress-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .progress-chip {
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
   border-radius: 12px;
   background: var(--color-bg-surface);
-  padding: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: box-shadow 140ms ease;
+}
+
+.progress-chip:hover {
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 
 .progress-chip strong {
   display: block;
-  font-size: 0.9rem;
-  opacity: 0.8;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
 }
 
 .progress-chip span {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-accent);
+  line-height: 1;
 }
 
 /* ============================================================
    MISSION / TREE GRID
    ============================================================ */
+
+/* Títulos de seção dentro do conteúdo de progresso */
+.progress-content > h3,
+.progress-content > section > h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
 
 .mission-list,
 .tree-grid {
@@ -1034,17 +1344,34 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-bg-surface);
-  padding: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Missão concluída — borda accent de destaque */
+.mission-card:has(.badge.completed) {
+  border-left: 3px solid var(--color-accent);
+}
+
+/* Missão desbloqueada — borda verde */
+.mission-card:has(.badge.unlocked):not(:has(.badge.completed)) {
+  border-left: 3px solid var(--color-green);
 }
 
 .node-card h4,
 .mission-card h4 {
-  margin: 0 0 6px;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .muted {
-  opacity: 0.75;
-  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .badge-row {
@@ -1055,27 +1382,39 @@ body {
 }
 
 .badge {
-  border-radius: 999px;
-  padding: 3px 8px;
-  font-size: 0.75rem;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 0.72rem;
   font-weight: 700;
   border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .badge.locked {
-  background: rgba(90, 90, 90, 0.12);
-  border-color: rgba(90, 90, 90, 0.25);
+  background: rgba(100, 110, 120, 0.10);
+  border-color: rgba(100, 110, 120, 0.22);
+  color: var(--color-text-secondary);
 }
+
+.badge.locked::before { content: "🔒"; font-size: 0.7rem; }
 
 .badge.unlocked {
   background: var(--color-green-bg);
   border-color: var(--color-green);
+  color: var(--color-green);
 }
 
+.badge.unlocked::before { content: "▶"; font-size: 0.65rem; }
+
 .badge.completed {
-  background: rgba(166, 109, 43, 0.14);
-  border-color: rgba(166, 109, 43, 0.33);
+  background: var(--color-green-bg);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
+
+.badge.completed::before { content: "✓"; font-size: 0.75rem; }
 
 .divider {
   margin: 10px 0;
@@ -1213,40 +1552,74 @@ body {
    ============================================================ */
 
 .lesson-box {
-  margin-top: 8px;
+  margin-top: 0;
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-green);
   border-radius: 10px;
-  background: var(--color-bg-surface);
-  padding: 8px;
+  background: var(--color-green-bg);
+  padding: 10px 12px;
 }
 
 .lesson-box.compact {
-  background: var(--color-bg-surface);
+  background: var(--color-green-bg);
 }
 
 .lesson-box summary {
   cursor: pointer;
+  font-size: 0.85rem;
   font-weight: 700;
+  color: var(--color-green);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
 }
 
+.lesson-box summary::-webkit-details-marker { display: none; }
+.lesson-box summary::before { content: "▸"; font-size: 0.75rem; }
+.lesson-box[open] summary::before { content: "▾"; }
+
+/* Dicas de jogo com ícone */
 .hint-list {
-  margin: 6px 0 0;
-  padding-left: 18px;
+  margin: 8px 0 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .hint-list li {
-  margin: 2px 0;
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--color-text-primary);
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.5;
 }
 
+.hint-list li::before {
+  content: "💡";
+  position: absolute;
+  left: 0;
+  font-size: 0.72rem;
+  top: 2px;
+}
+
+/* Bloco de código */
 .code-mini {
-  margin: 4px 0 8px;
-  padding: 8px;
+  margin: 6px 0 4px;
+  padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
   background: var(--color-log-bg);
   color: var(--color-log-text);
   overflow: auto;
   font-size: 0.82rem;
+  font-family: "Consolas", "Fira Mono", "Cascadia Code", monospace;
+  line-height: 1.6;
+  white-space: pre;
 }
 
 .mission-mini .badge {
@@ -1399,6 +1772,146 @@ body {
   overflow: visible;
   position: sticky;
   top: 0;
+}
+
+/* ============================================================
+   CUSTOMIZADOR DE TEMA
+   ============================================================ */
+
+.theme-customizer-modal {
+  max-width: 600px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-customizer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  padding: 16px;
+  flex: 1;
+}
+
+.customizer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customizer-section h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.customizer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customizer-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.customizer-option:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-elevated);
+}
+
+.customizer-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.customizer-option input[type="radio"]:checked + .option-label {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.option-label {
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.option-desc {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-left: auto;
+}
+
+/* Grid de acentos */
+.customizer-accents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.accent-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.accent-option:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.accent-option input[type="radio"] {
+  cursor: pointer;
+  display: none;
+}
+
+.accent-option input[type="radio"]:checked + .accent-swatch {
+  box-shadow: 0 0 0 3px var(--color-accent);
+  transform: scale(1.15);
+}
+
+.accent-swatch {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  transition: all 200ms ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.accent-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Preview */
+.theme-preview {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+}
+
+.preview-sample {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* ============================================================

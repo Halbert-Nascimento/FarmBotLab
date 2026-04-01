@@ -133,6 +133,49 @@ function initTheme() {
   applyTheme(saved);
 }
 
+// ─── Sistema de Paletas e Acentos ───────────────────────────────────────────
+
+const PALETTE_STORAGE_KEY = "farmbot.palette";
+const ACCENT_STORAGE_KEY = "farmbot.accent";
+const DEFAULT_PALETTE = "neutral-modern";
+const DEFAULT_ACCENT = "teal";
+
+const AVAILABLE_PALETTES = ["neutral-modern", "earthy-modern", "slate-indigo"];
+const AVAILABLE_ACCENTS = [
+  "amber", "indigo", "teal", "orange", "emerald", "ruby",
+  "sky", "violet", "gold", "lime", "cyan", "pink", "carbon"
+];
+
+let currentPalette = DEFAULT_PALETTE;
+let currentAccent = DEFAULT_ACCENT;
+
+function applyPalette(palette) {
+  const resolved = AVAILABLE_PALETTES.includes(palette) ? palette : DEFAULT_PALETTE;
+  document.documentElement.setAttribute("data-palette", resolved);
+  currentPalette = resolved;
+  try { localStorage.setItem(PALETTE_STORAGE_KEY, resolved); } catch (_) {}
+}
+
+function applyAccent(accent) {
+  const resolved = AVAILABLE_ACCENTS.includes(accent) ? accent : DEFAULT_ACCENT;
+  document.documentElement.setAttribute("data-accent", resolved);
+  currentAccent = resolved;
+  try { localStorage.setItem(ACCENT_STORAGE_KEY, resolved); } catch (_) {}
+}
+
+function initPaletteAndAccent() {
+  let savedPalette = DEFAULT_PALETTE;
+  let savedAccent = DEFAULT_ACCENT;
+
+  try {
+    savedPalette = localStorage.getItem(PALETTE_STORAGE_KEY) || DEFAULT_PALETTE;
+    savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY) || DEFAULT_ACCENT;
+  } catch (_) {}
+
+  applyPalette(savedPalette);
+  applyAccent(savedAccent);
+}
+
 // ─── HUD de estatísticas na topbar ───────────────────────────────────────────
 
 function updateStatsHud() {
@@ -579,6 +622,7 @@ renderInventoryHud();
 
 // Inicializa tema, sincroniza editor e atualiza HUD de estatísticas
 initTheme();
+initPaletteAndAccent();
 editor.setTheme(document.documentElement.getAttribute("data-theme") || DEFAULT_THEME);
 
 // Toggle 🌙/☀️ — alterna entre Noite e o último tema claro usado
@@ -596,6 +640,68 @@ if (themeSelect) {
   themeSelect.addEventListener("change", () => {
     applyTheme(themeSelect.value);
     editor.setTheme(themeSelect.value);
+  });
+}
+
+// ─── Modal de Customização de Tema ──────────────────────────────────────────
+
+const openThemeCustomizerBtn = document.querySelector("#openThemeCustomizerBtn");
+const closeThemeCustomizerBtn = document.querySelector("#closeThemeCustomizerBtn");
+const themeCustomizerModal = document.querySelector("#themeCustomizerModal");
+
+if (openThemeCustomizerBtn) {
+  openThemeCustomizerBtn.addEventListener("click", () => {
+    if (themeCustomizerModal) {
+      themeCustomizerModal.setAttribute("aria-hidden", "false");
+      themeCustomizerModal.style.display = "flex";
+
+      // Sincroniza os inputs com as preferências atuais
+      const paletteRadios = themeCustomizerModal.querySelectorAll('input[name="palette"]');
+      const accentRadios = themeCustomizerModal.querySelectorAll('input[name="accent"]');
+
+      paletteRadios.forEach(radio => {
+        radio.checked = radio.value === currentPalette;
+      });
+
+      accentRadios.forEach(radio => {
+        radio.checked = radio.value === currentAccent;
+      });
+    }
+  });
+}
+
+if (closeThemeCustomizerBtn) {
+  closeThemeCustomizerBtn.addEventListener("click", () => {
+    if (themeCustomizerModal) {
+      themeCustomizerModal.setAttribute("aria-hidden", "true");
+      themeCustomizerModal.style.display = "none";
+    }
+  });
+}
+
+// Fechar ao clicar no background
+if (themeCustomizerModal) {
+  themeCustomizerModal.addEventListener("click", (event) => {
+    if (event.target === themeCustomizerModal) {
+      themeCustomizerModal.setAttribute("aria-hidden", "true");
+      themeCustomizerModal.style.display = "none";
+    }
+  });
+
+  // Event listeners para paletas
+  const paletteRadios = themeCustomizerModal.querySelectorAll('input[name="palette"]');
+  paletteRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      applyPalette(radio.value);
+    });
+  });
+
+  // Event listeners para acentos
+  const accentRadios = themeCustomizerModal.querySelectorAll('input[name="accent"]');
+  accentRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      applyAccent(radio.value);
+    });
   });
 }
 
