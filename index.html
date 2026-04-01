@@ -9,8 +9,14 @@
       (function () {
         try {
           var t = localStorage.getItem("farmbot.theme");
-          if (t === "dark") document.documentElement.setAttribute("data-theme", "dark");
-        } catch (e) {}
+          var valid = ["claro", "floresta", "noite", "dark"];
+          document.documentElement.setAttribute(
+            "data-theme",
+            valid.indexOf(t) !== -1 ? t : "claro"
+          );
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "claro");
+        }
       })();
     </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
@@ -51,7 +57,14 @@
         </div>
 
         <div class="topbar-actions">
-          <button id="themeToggleBtn" class="btn btn-icon" aria-label="Alternar tema escuro/claro" title="Alternar tema">🌙</button>
+          <div class="theme-controls">
+            <button id="themeToggleBtn" class="btn btn-icon" aria-label="Alternar modo escuro/claro" title="Modo escuro/claro">🌙</button>
+            <select id="themeSelect" class="theme-select" aria-label="Selecionar tema">
+              <option value="claro">☀️ Claro</option>
+              <option value="floresta">🌿 Floresta</option>
+              <option value="noite">🌙 Noite</option>
+            </select>
+          </div>
           <button id="openProgressModalBtn" class="btn">Progresso Rápido</button>
           <button id="openProgressPageBtn" class="btn btn-primary">Árvore de Missões</button>
           <button id="openDevTreePageBtn" class="btn btn-primary">Árvore de Desenvolvimento</button>

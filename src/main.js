@@ -37,7 +37,8 @@ const sceneRoot = document.querySelector("#scene");
 const inventoryHudEl = document.querySelector("#inventoryHud");
 const scenePanelEl = document.querySelector(".scene-panel");
 const themeToggleBtn = document.querySelector("#themeToggleBtn");
-const clearLogBtn = document.querySelector("#clearLogBtn");
+const themeSelect    = document.querySelector("#themeSelect");
+const clearLogBtn    = document.querySelector("#clearLogBtn");
 const statMovesEl = document.querySelector("#statMovesValue");
 const statPlantsEl = document.querySelector("#statPlantsValue");
 const statHarvestsEl = document.querySelector("#statHarvestsValue");
@@ -96,35 +97,39 @@ function debugAlert(message) {
   alert(`[DEBUG] ${message}`);
 }
 
-// ─── Tema claro/escuro ────────────────────────────────────────────────────────
+// ─── Tema visual ─────────────────────────────────────────────────────────────
 
-function applyTheme(mode) {
-  const resolved = mode === "dark" ? "dark" : "light";
+const VALID_THEMES   = ["claro", "floresta", "noite"];
+const DARK_THEME     = "noite";
+const DEFAULT_THEME  = "claro";
+let   lastLightTheme = DEFAULT_THEME;  // lembra qual tema claro estava ativo
+
+function applyTheme(theme) {
+  // Migração: "dark"/"light" legados → novos nomes
+  const migrated = theme === "dark" ? DARK_THEME : (theme === "light" ? DEFAULT_THEME : theme);
+  const resolved  = VALID_THEMES.includes(migrated) ? migrated : DEFAULT_THEME;
+
+  if (resolved !== DARK_THEME) lastLightTheme = resolved;
+
   document.documentElement.setAttribute("data-theme", resolved);
 
   if (themeToggleBtn) {
-    themeToggleBtn.textContent = resolved === "dark" ? "☀️" : "🌙";
-    themeToggleBtn.setAttribute(
-      "aria-label",
-      resolved === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"
-    );
+    themeToggleBtn.textContent = resolved === DARK_THEME ? "☀️" : "🌙";
+    themeToggleBtn.title = resolved === DARK_THEME ? "Modo claro" : "Modo escuro";
   }
 
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, resolved);
-  } catch (_) {}
+  if (themeSelect) themeSelect.value = resolved;
 
-  // Sincroniza o tema do editor Ace (editor ainda não existe aqui; chamado novamente após init)
+  try { localStorage.setItem(THEME_STORAGE_KEY, resolved); } catch (_) {}
+
   if (typeof editor !== "undefined" && editor && typeof editor.setTheme === "function") {
     editor.setTheme(resolved);
   }
 }
 
 function initTheme() {
-  let saved = "light";
-  try {
-    saved = localStorage.getItem(THEME_STORAGE_KEY) || "light";
-  } catch (_) {}
+  let saved = DEFAULT_THEME;
+  try { saved = localStorage.getItem(THEME_STORAGE_KEY) || DEFAULT_THEME; } catch (_) {}
   applyTheme(saved);
 }
 
@@ -574,14 +579,23 @@ renderInventoryHud();
 
 // Inicializa tema, sincroniza editor e atualiza HUD de estatísticas
 initTheme();
-editor.setTheme(document.documentElement.getAttribute("data-theme") || "light");
+editor.setTheme(document.documentElement.getAttribute("data-theme") || DEFAULT_THEME);
 
+// Toggle 🌙/☀️ — alterna entre Noite e o último tema claro usado
 if (themeToggleBtn) {
   themeToggleBtn.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") || "light";
-    const next = current === "dark" ? "light" : "dark";
+    const current = document.documentElement.getAttribute("data-theme") || DEFAULT_THEME;
+    const next = current === DARK_THEME ? lastLightTheme : DARK_THEME;
     applyTheme(next);
     editor.setTheme(next);
+  });
+}
+
+// Seletor de tema — aplica o tema escolhido na lista
+if (themeSelect) {
+  themeSelect.addEventListener("change", () => {
+    applyTheme(themeSelect.value);
+    editor.setTheme(themeSelect.value);
   });
 }
 

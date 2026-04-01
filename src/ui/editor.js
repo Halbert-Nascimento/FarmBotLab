@@ -36,10 +36,13 @@ export function createEditor({ rootId = "editor", defaultCode, onDebugError }) {
 
   setTheme = (mode) => {
     const themeMap = {
-      light: "ace/theme/textmate",
-      dark: "ace/theme/tomorrow_night",
+      claro:    "ace/theme/chrome",
+      floresta: "ace/theme/textmate",
+      noite:    "ace/theme/tomorrow_night",
+      light:    "ace/theme/chrome",
+      dark:     "ace/theme/tomorrow_night",
     };
-    aceEditor.setTheme(themeMap[mode] || themeMap.light);
+    aceEditor.setTheme(themeMap[mode] || themeMap.claro);
   };
 
   return { getValue, setTheme };
