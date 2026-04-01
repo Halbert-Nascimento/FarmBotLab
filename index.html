@@ -4,37 +4,94 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FarmBot Lab - Treino JS</title>
+    <!-- Anti-FOUC: aplica o tema salvo antes do primeiro paint, evitando flash -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("farmbot.theme");
+          if (t === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div class="app-shell">
+
+      <!-- TOPBAR -->
       <header class="topbar">
-        <div class="topbar-main">
+        <div class="topbar-brand topbar-main">
           <h1>FarmBot Lab</h1>
           <p>Replica didatica inspirada em The Farmer Was Replaced</p>
         </div>
+
+        <!-- HUD de estatísticas ao vivo -->
+        <div id="statsHud" class="stats-hud" aria-live="polite" aria-label="Estatísticas de jogo">
+          <div class="stat-chip" title="Total de movimentos realizados">
+            <span class="stat-icon">🚜</span>
+            <span class="stat-label">Movimentos</span>
+            <strong class="stat-value" id="statMovesValue">0</strong>
+          </div>
+          <div class="stat-chip" title="Total de plantios realizados">
+            <span class="stat-icon">🌱</span>
+            <span class="stat-label">Plantios</span>
+            <strong class="stat-value" id="statPlantsValue">0</strong>
+          </div>
+          <div class="stat-chip" title="Total de colheitas realizadas">
+            <span class="stat-icon">🌾</span>
+            <span class="stat-label">Colheitas</span>
+            <strong class="stat-value" id="statHarvestsValue">0</strong>
+          </div>
+          <div class="stat-chip stat-chip--mission" title="Missão ativa atual">
+            <span class="stat-icon">🎯</span>
+            <span class="stat-label">Missão</span>
+            <span class="stat-value stat-value--mission" id="statMissionValue">Carregando…</span>
+          </div>
+        </div>
+
         <div class="topbar-actions">
-          <button id="openProgressModalBtn" class="btn">Progresso Rapido</button>
-          <button id="openProgressPageBtn" class="btn btn-primary">Arvore de Missoes</button>
-          <button id="openDevTreePageBtn" class="btn btn-primary">Arvore de Desenvolvimento</button>
+          <button id="themeToggleBtn" class="btn btn-icon" aria-label="Alternar tema escuro/claro" title="Alternar tema">🌙</button>
+          <button id="openProgressModalBtn" class="btn">Progresso Rápido</button>
+          <button id="openProgressPageBtn" class="btn btn-primary">Árvore de Missões</button>
+          <button id="openDevTreePageBtn" class="btn btn-primary">Árvore de Desenvolvimento</button>
         </div>
       </header>
 
+      <!-- LAYOUT PRINCIPAL -->
       <main class="layout">
+
+        <!-- PAINEL DE CÓDIGO -->
         <section class="panel code-panel">
           <div class="panel-head">
             <h2>Código JavaScript</h2>
             <div class="actions">
-              <button id="runBtn" class="btn btn-primary">Executar</button>
-              <button id="stopBtn" class="btn">Parar</button>
-              <button id="resetBtn" class="btn">Resetar</button>
+              <button id="runBtn" class="btn btn-primary">▶ Executar</button>
+              <button id="stopBtn" class="btn" disabled>⏹ Parar</button>
+              <button id="resetBtn" class="btn btn-ghost btn-sm">↺ Resetar</button>
             </div>
           </div>
+
           <div id="editor"></div>
-          <p class="hint">API principal: moverDireita(), moverEsquerda(), moverCima(), moverBaixo(), plantar(), colher() (ingles legado ainda funciona)</p>
+
+          <!-- Referência da API colapsável -->
+          <details id="apiReference" class="api-reference">
+            <summary class="api-reference-summary">Referência de Comandos da API</summary>
+            <div class="api-reference-body">
+              <ul class="api-list">
+                <li><code>moverDireita()</code> — move o bot uma célula para a direita</li>
+                <li><code>moverEsquerda()</code> — move para a esquerda</li>
+                <li><code>moverCima()</code> — move para cima</li>
+                <li><code>moverBaixo()</code> — move para baixo</li>
+                <li><code>plantar("tipo")</code> — planta na célula atual: <code>capim</code>, <code>trigo</code>, <code>milho</code>, <code>arvore</code>, <code>girasol</code>, <code>morango</code></li>
+                <li><code>colher()</code> — colhe o que está na célula atual</li>
+              </ul>
+              <p class="hint" style="margin-top:6px">Aliases em inglês também funcionam: moveRight(), moveLeft(), moveUp(), moveDown(), plant(), harvest()</p>
+            </div>
+          </details>
         </section>
 
+        <!-- PAINEL DA CENA -->
         <section class="panel scene-panel">
           <div class="panel-head">
             <h2>Plantação</h2>
@@ -53,38 +110,51 @@
               </label>
             </div>
           </div>
+
           <aside id="inventoryHud" class="inventory-hud" aria-live="polite"></aside>
           <div id="scene"></div>
-          <pre id="log"></pre>
+
+          <!-- Log com header e botão limpar -->
+          <div class="log-panel">
+            <div class="log-panel-head">
+              <span class="log-panel-title">Log de Execução</span>
+              <button id="clearLogBtn" class="btn btn-xs btn-ghost" title="Limpar log">✕ Limpar</button>
+            </div>
+            <pre id="log"></pre>
+          </div>
         </section>
+
       </main>
     </div>
 
+    <!-- MODAL: Progresso Rápido -->
     <div id="progressModal" class="progress-overlay" aria-hidden="true">
-      <section class="progress-surface progress-modal" role="dialog" aria-label="Progresso rapido">
+      <section class="progress-surface progress-modal" role="dialog" aria-label="Progresso rápido">
         <div class="progress-head">
-          <h3>Progresso Rapido</h3>
-          <button id="closeProgressModalBtn" class="btn">Fechar</button>
+          <h3>Progresso Rápido</h3>
+          <button id="closeProgressModalBtn" class="btn btn-ghost btn-sm">✕ Fechar</button>
         </div>
         <div id="progressModalContent" class="progress-content"></div>
       </section>
     </div>
 
+    <!-- PÁGINA: Árvore de Missões -->
     <div id="progressPage" class="progress-page" aria-hidden="true">
       <section class="progress-surface progress-page-panel">
         <div class="progress-head">
-          <h2>Arvore de Missoes e Desbloqueios</h2>
-          <button id="closeProgressPageBtn" class="btn">Voltar ao Jogo</button>
+          <h2>Árvore de Missões e Desbloqueios</h2>
+          <button id="closeProgressPageBtn" class="btn btn-ghost btn-sm">← Voltar ao Jogo</button>
         </div>
         <div id="progressPageContent" class="progress-content"></div>
       </section>
     </div>
 
+    <!-- PÁGINA: Árvore de Desenvolvimento -->
     <div id="devTreePage" class="progress-page" aria-hidden="true">
       <section class="progress-surface progress-page-panel">
         <div class="progress-head">
-          <h2>Arvore Completa de Desenvolvimento</h2>
-          <button id="closeDevTreePageBtn" class="btn">Voltar ao Jogo</button>
+          <h2>Árvore de Desenvolvimento</h2>
+          <button id="closeDevTreePageBtn" class="btn btn-ghost btn-sm">← Voltar ao Jogo</button>
         </div>
         <div id="devTreePageContent" class="progress-content"></div>
       </section>

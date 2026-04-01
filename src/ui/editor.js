@@ -2,6 +2,7 @@ const Ace = window.ace;
 
 export function createEditor({ rootId = "editor", defaultCode, onDebugError }) {
   let getValue = () => defaultCode;
+  let setTheme = () => {};
 
   if (!Ace) {
     const fallback = document.createElement("textarea");
@@ -16,21 +17,30 @@ export function createEditor({ rootId = "editor", defaultCode, onDebugError }) {
     getValue = () => fallback.value;
     onDebugError("Ace nao carregou. Editor em modo fallback (textarea).");
 
-    return { getValue };
+    return { getValue, setTheme };
   }
 
   const aceEditor = Ace.edit(rootId);
   aceEditor.setTheme("ace/theme/textmate");
   aceEditor.session.setMode("ace/mode/javascript");
   aceEditor.setOptions({
-    fontSize: "14px", // fonte do editor
-    showPrintMargin: false, // desativa a linha vertical de 80 caracteres
+    fontSize: "14px",
+    showPrintMargin: false,
     useWorker: false,
     tabSize: 2,
   });
   aceEditor.session.setUseSoftTabs(true);
   aceEditor.setValue(defaultCode, -1);
+
   getValue = () => aceEditor.getValue();
 
-  return { getValue };
+  setTheme = (mode) => {
+    const themeMap = {
+      light: "ace/theme/textmate",
+      dark: "ace/theme/tomorrow_night",
+    };
+    aceEditor.setTheme(themeMap[mode] || themeMap.light);
+  };
+
+  return { getValue, setTheme };
 }

@@ -36,6 +36,14 @@ const avatarSelect = document.querySelector("#avatarSelect");
 const sceneRoot = document.querySelector("#scene");
 const inventoryHudEl = document.querySelector("#inventoryHud");
 const scenePanelEl = document.querySelector(".scene-panel");
+const themeToggleBtn = document.querySelector("#themeToggleBtn");
+const clearLogBtn = document.querySelector("#clearLogBtn");
+const statMovesEl = document.querySelector("#statMovesValue");
+const statPlantsEl = document.querySelector("#statPlantsValue");
+const statHarvestsEl = document.querySelector("#statHarvestsValue");
+const statMissionEl = document.querySelector("#statMissionValue");
+
+const THEME_STORAGE_KEY = "farmbot.theme";
 
 const INVENTORY_ITEM_ORDER = [
   "capim",
@@ -86,6 +94,66 @@ const INVENTORY_FLOAT_GAP = 10;
 function debugAlert(message) {
   if (!DEBUG_ALERTS) return;
   alert(`[DEBUG] ${message}`);
+}
+
+// ─── Tema claro/escuro ────────────────────────────────────────────────────────
+
+function applyTheme(mode) {
+  const resolved = mode === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", resolved);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.textContent = resolved === "dark" ? "☀️" : "🌙";
+    themeToggleBtn.setAttribute(
+      "aria-label",
+      resolved === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"
+    );
+  }
+
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, resolved);
+  } catch (_) {}
+
+  // Sincroniza o tema do editor Ace (editor ainda não existe aqui; chamado novamente após init)
+  if (typeof editor !== "undefined" && editor && typeof editor.setTheme === "function") {
+    editor.setTheme(resolved);
+  }
+}
+
+function initTheme() {
+  let saved = "light";
+  try {
+    saved = localStorage.getItem(THEME_STORAGE_KEY) || "light";
+  } catch (_) {}
+  applyTheme(saved);
+}
+
+// ─── HUD de estatísticas na topbar ───────────────────────────────────────────
+
+function updateStatsHud() {
+  const phase = gamePhases.getCurrentPhase();
+  const stats = phase.progress || {};
+  const activeMissions = gamePhases.getActiveMissions(1);
+  const missionTitle = activeMissions.length ? activeMissions[0].title : phase.title || "—";
+
+  if (statMovesEl)    statMovesEl.textContent    = stats.moves    ?? 0;
+  if (statPlantsEl)   statPlantsEl.textContent   = stats.plants   ?? 0;
+  if (statHarvestsEl) statHarvestsEl.textContent = stats.harvests ?? 0;
+  if (statMissionEl)  statMissionEl.textContent  = missionTitle;
+}
+
+// ─── Estado dos botões Executar / Parar ──────────────────────────────────────
+
+function updateRunStopState() {
+  const running = runner.isExecuting();
+  if (runBtn) {
+    runBtn.disabled = running;
+    runBtn.classList.toggle("is-running", running);
+    runBtn.querySelector(".btn-label") && (runBtn.querySelector(".btn-label").textContent = running ? "Executando…" : "Executar");
+  }
+  if (stopBtn) {
+    stopBtn.disabled = !running;
+  }
 }
 
 const logger = createLogger(logEl);
@@ -280,6 +348,7 @@ const gamePhases = createGamePhases({
     logger.append(`No atual: ${phase.title}`);
     logger.append(`Progresso geral: ${phase.progressLabel}`);
     renderInventoryHud();
+    updateStatsHud();
     if (progressionUI) {
       progressionUI.render();
     }
@@ -336,6 +405,7 @@ async function performAction(action) {
       logger.append("Bateu na borda da fazenda");
     }
     renderInventoryHud();
+    updateStatsHud();
     return;
   }
 
@@ -349,6 +419,7 @@ async function performAction(action) {
       logger.append("Bateu na borda da fazenda");
     }
     renderInventoryHud();
+    updateStatsHud();
     return;
   }
 
@@ -362,6 +433,7 @@ async function performAction(action) {
       logger.append("Bateu na borda da fazenda");
     }
     renderInventoryHud();
+    updateStatsHud();
     return;
   }
 
@@ -375,6 +447,7 @@ async function performAction(action) {
       logger.append("Bateu na borda da fazenda");
     }
     renderInventoryHud();
+    updateStatsHud();
     return;
   }
 
@@ -386,6 +459,7 @@ async function performAction(action) {
     view.setCrop(result.x, result.y, result.crop.type);
     logger.append(`Plantou ${result.crop.type} em (${result.x}, ${result.y})`);
     renderInventoryHud();
+    updateStatsHud();
     return;
   }
 
@@ -398,6 +472,7 @@ async function performAction(action) {
     view.setCrop(result.x, result.y, null);
     logger.append(`Colheu em (${result.x}, ${result.y})`);
     renderInventoryHud();
+    updateStatsHud();
   }
 }
 
@@ -429,6 +504,8 @@ function resetWorld() {
   view.reset(world.getSnapshot());
   logger.append("Mundo resetado");
   renderInventoryHud();
+  updateStatsHud();
+  updateRunStopState();
 }
 
 function setupDebugHooks() {
@@ -454,11 +531,22 @@ window.setCropGrowthSettings = (patch) => {
 
 runBtn.addEventListener("click", () => {
   gamePhases.recordEvent("run");
-  runner.run();
+  // run() é assíncrono: isExecuting vira true sincronamente no início da função,
+  // então updateRunStopState() captura o estado correto logo após a chamada.
+  const runPromise = runner.run();
+  updateRunStopState();
+  updateStatsHud();
+  // Restaura estado dos botões quando a execução terminar
+  if (runPromise && typeof runPromise.finally === "function") {
+    runPromise.finally(() => {
+      updateRunStopState();
+    });
+  }
 });
 
 stopBtn.addEventListener("click", () => {
   runner.stop();
+  setTimeout(updateRunStopState, 60);
 });
 
 resetBtn.addEventListener("click", resetWorld);
@@ -483,6 +571,27 @@ resetWorld();
 view.resize();
 progressionUI.render();
 renderInventoryHud();
+
+// Inicializa tema, sincroniza editor e atualiza HUD de estatísticas
+initTheme();
+editor.setTheme(document.documentElement.getAttribute("data-theme") || "light");
+
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    const next = current === "dark" ? "light" : "dark";
+    applyTheme(next);
+    editor.setTheme(next);
+  });
+}
+
+if (clearLogBtn) {
+  clearLogBtn.addEventListener("click", () => {
+    logger.clear();
+  });
+}
+
+updateStatsHud();
 
 window.gamePhases = {
   getCurrent: () => gamePhases.getCurrentPhase(),
@@ -523,6 +632,7 @@ window.gamePhases = {
     const state = gamePhases.getWorldState();
     applyWorldDimensions(state.width, state.height, "reset-progress");
     renderInventoryHud();
+    updateStatsHud();
   },
 };
 
