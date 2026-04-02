@@ -719,47 +719,109 @@ function renderDevTreePage(devTree, worldUpgrades, selectedTrackId) {
 function renderNodeFocusDetails(node, treeNodes) {
   if (!node) {
     return `
-      <section class="mission-card" data-selected-node-id="">
-        <h4>Detalhes do No</h4>
-        <p class="muted">Clique em um no da arvore para ver mais informacoes.</p>
+      <section class="node-detail-panel node-detail-panel--empty" data-selected-node-id="">
+        <div class="node-detail-empty">
+          <span class="node-detail-empty-icon">↖</span>
+          <p>Clique em um nó da árvore para ver detalhes e missões.</p>
+        </div>
       </section>
     `;
   }
 
-  const byId = new Map((treeNodes || []).map((n) => [n.id, n]));
-  const requiresLabel = (node.requires || []).length
-    ? node.requires.map((reqId) => byId.get(reqId)?.title || reqId).join(" | ")
-    : "Inicio da trilha";
+  const byId  = new Map((treeNodes || []).map((n) => [n.id, n]));
+  const stateClass = node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked";
+  const branchLabel = { fundamentos: "Fundamentos", agricola: "Gameplay — Agricola",
+    otimizacao: "Gameplay — Otimização", logica: "Programação — Lógica",
+    abstracao: "Programação — Abstração", maestria: "Maestria" }[node.branch] || node.branch;
+  const requiresNodes = (node.requires || []).map((id) => byId.get(id)).filter(Boolean);
+  const done  = (node.missions || []).filter((m) => m.isCompleted).length;
+  const total = (node.missions || []).length;
 
   return `
-    <section class="mission-card" data-selected-node-id="${node.id}">
-      <h4>${formatNodeLabel(node)}</h4>
-      <p class="muted">Trilha: ${node.branch || "geral"}</p>
-      <p class="muted">Depende de: ${requiresLabel}</p>
-      <div class="badge-row">
-        <span class="${badgeClass(node.isCompleted, node.isUnlocked)}">${statusText(node.isCompleted, node.isUnlocked)}</span>
+    <section class="node-detail-panel ${stateClass}" data-selected-node-id="${node.id}">
+      <div class="node-detail-head">
+        <span class="node-detail-icon" aria-hidden="true">${nodeIcon(node.id)}</span>
+        <div class="node-detail-head-info">
+          <h4 class="node-detail-title">${node.title}</h4>
+          <p class="node-detail-subtitle">${branchLabel} · [${done}/${total}]</p>
+        </div>
+        <span class="badge ${node.isCompleted ? "completed" : node.isUnlocked ? "unlocked" : "locked"}" title="${statusText(node.isCompleted, node.isUnlocked)}"></span>
       </div>
 
-      <details class="lesson-box compact" open>
-        <summary>Recursos liberados neste no</summary>
-        <ul class="hint-list">
-          ${(node.unlocks || []).map((feature) => `<li>${featureLabel(feature)}</li>`).join("") || "<li>Nenhum recurso.</li>"}
-        </ul>
-      </details>
+      ${requiresNodes.length ? `
+        <p class="node-detail-label">Requer</p>
+        <div class="node-detail-requires">
+          ${requiresNodes.map((req) => `
+            <span class="node-req-chip ${req.isCompleted ? "is-done" : ""}">
+              ${nodeIcon(req.id)} ${req.title}
+            </span>
+          `).join("")}
+        </div>
+      ` : ""}
 
-      <details class="lesson-box compact" open>
-        <summary>Missoes do no</summary>
-        <ul class="hint-list">
-          ${(node.missions || [])
-            .map(
-              (mission) =>
-                `<li>${formatMissionLabel(mission)} - ${mission.isCompleted ? "concluida" : mission.isUnlocked ? "ativa" : "bloqueada"}</li>`
-            )
-            .join("") || "<li>Sem missoes.</li>"}
-        </ul>
-      </details>
+      <p class="node-detail-label">Desbloqueia</p>
+      <div class="node-detail-unlocks">
+        ${(node.unlocks || []).map((f) => `<span class="node-unlock-chip">${featureLabel(f)}</span>`).join("") || "<span class='muted'>—</span>"}
+      </div>
+
+      <p class="node-detail-label">Missões</p>
+      <div class="node-detail-missions">
+        ${(node.missions || []).map((m) => {
+          const ms = m.isCompleted ? "is-completed" : m.isUnlocked ? "is-unlocked" : "is-locked";
+          const icon = m.isCompleted ? "✓" : m.isUnlocked ? "▶" : "🔒";
+          return `
+            <div class="node-mission-row ${ms}">
+              <span class="node-mission-icon">${icon}</span>
+              <div class="node-mission-info">
+                <p class="node-mission-title">${formatMissionLabel(m)}</p>
+                <p class="node-mission-obj muted">${m.objective || ""}</p>
+              </div>
+              <span class="node-mission-progress">${m.progressLabel || ""}</span>
+            </div>
+          `;
+        }).join("")}
+      </div>
     </section>
   `;
+}
+
+// ── Mapeamento de ícone por nó da árvore de missões ──
+function nodeIcon(nodeId) {
+  const icons = {
+    n01_movimento:       "🚜",
+    n02_plantio:         "🌱",
+    n03_colheita:        "🌾",
+    n04_condicional_if:  "🔀",
+    n05_loop_while:      "🔁",
+    n06_loop_for:        "🔄",
+    n07_funcoes:         "𝑓()",
+    n08_funcoes_param:   "𝑓(x)",
+    n09_arrays:          "[ ]",
+    n10_estrategia:      "🗺️",
+    n11_eficiencia:      "⚡",
+    n12_maestria:        "🏆",
+  };
+  return icons[nodeId] || "📦";
+}
+
+// ── Classifica cada nó em ramo: gameplay | code | root | maestria ──
+function nodeBranchType(node) {
+  const gameplay = ["agricola", "otimizacao"];
+  const code     = ["logica", "abstracao"];
+  if (gameplay.includes(node.branch)) return "gameplay";
+  if (code.includes(node.branch))     return "code";
+  if (node.branch === "maestria")     return "maestria";
+  return "root";
+}
+
+// ── Caminho ortogonal (90°) entre dois nós: bottom-from → top-to ──
+function orthoPath(from, to) {
+  const x1   = from._layout.centerX;
+  const y1   = from._layout.y + from._layout.height;
+  const x2   = to._layout.centerX;
+  const y2   = to._layout.y;
+  const midY = (y1 + y2) / 2;
+  return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
 }
 
 function toSafeNumber(value, fallback) {
@@ -767,12 +829,12 @@ function toSafeNumber(value, fallback) {
 }
 
 function buildTreeLayout(treeNodes) {
-  const colStep = 210;
-  const rowStep = 140;
-  const cardWidth = 170;
-  const cardHeight = 84;
-  const leftPad = 42;
-  const topPad = 36;
+  const colStep   = 200;
+  const rowStep   = 172;
+  const cardWidth  = 148;
+  const cardHeight = 112;
+  const leftPad   = 48;
+  const topPad    = 48;
 
   const maxCol = treeNodes.reduce((max, node) => Math.max(max, toSafeNumber(node.tree && node.tree.col, 0)), 0);
   const maxRow = treeNodes.reduce((max, node) => Math.max(max, toSafeNumber(node.tree && node.tree.row, 0)), 0);
@@ -823,42 +885,85 @@ function buildTreeLayout(treeNodes) {
 function renderTreeCanvas(treeNodes) {
   const layout = buildTreeLayout(treeNodes);
 
+  // ── Bounding box de um grupo de nós (para regiões de ramo) ──
+  function groupBounds(nodes, padH = 24, padV = 36) {
+    if (!nodes.length) return null;
+    const minX = Math.min(...nodes.map((n) => n._layout.x)) - padH;
+    const minY = Math.min(...nodes.map((n) => n._layout.y)) - padV;
+    const maxX = Math.max(...nodes.map((n) => n._layout.x + n._layout.width)) + padH;
+    const maxY = Math.max(...nodes.map((n) => n._layout.y + n._layout.height)) + padV;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX) / 2 };
+  }
+
+  const gameplayNodes = layout.nodes.filter((n) => nodeBranchType(n) === "gameplay");
+  const codeNodes     = layout.nodes.filter((n) => nodeBranchType(n) === "code");
+  const gpBox  = groupBounds(gameplayNodes);
+  const codeBox = groupBounds(codeNodes);
+
   return `
     <section class="tree-canvas-wrap tree-canvas-wrap-full">
       <div class="tree-viewport" data-tree-interactive="true" tabindex="0" aria-label="Arvore de missoes interativa">
         <div class="tree-canvas" style="width:${layout.width}px; height:${layout.height}px;">
+
           <svg class="tree-lines" viewBox="0 0 ${layout.width} ${layout.height}" preserveAspectRatio="none">
+            <defs>
+              <filter id="tree-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+
+            <!-- Regiões de ramo -->
+            ${gpBox ? `
+              <rect class="branch-region branch-region--gameplay"
+                x="${gpBox.x}" y="${gpBox.y}" width="${gpBox.w}" height="${gpBox.h}" rx="14"/>
+              <text class="branch-label branch-label--gameplay"
+                x="${gpBox.cx}" y="${gpBox.y + 22}" text-anchor="middle">🌾 Gameplay</text>
+            ` : ""}
+            ${codeBox ? `
+              <rect class="branch-region branch-region--code"
+                x="${codeBox.x}" y="${codeBox.y}" width="${codeBox.w}" height="${codeBox.h}" rx="14"/>
+              <text class="branch-label branch-label--code"
+                x="${codeBox.cx}" y="${codeBox.y + 22}" text-anchor="middle">💻 Programação</text>
+            ` : ""}
+
+            <!-- Conexões ortogonais -->
             ${layout.edges
-              .map(
-                (edge) => `
-              <path
-                d="M ${edge.from._layout.centerX} ${edge.from._layout.centerY} C ${edge.from._layout.centerX} ${(edge.from._layout.centerY + edge.to._layout.centerY) / 2}, ${edge.to._layout.centerX} ${(edge.from._layout.centerY + edge.to._layout.centerY) / 2}, ${edge.to._layout.centerX} ${edge.to._layout.centerY}"
-                class="tree-link ${edge.to.isUnlocked ? "unlocked" : "locked"}"
-              />
-            `
-              )
+              .map((edge) => {
+                const stateClass = edge.to.isCompleted ? "is-completed" : edge.to.isUnlocked ? "is-unlocked" : "is-locked";
+                return `<path d="${orthoPath(edge.from, edge.to)}" class="tree-link ${stateClass}"/>`;
+              })
               .join("")}
           </svg>
 
+          <!-- Nós -->
           ${layout.nodes
-            .map(
-              (node) => `
-            <article
-              class="node-card tree-node ${node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked"}"
-              data-node-id="${node.id}"
-              style="left:${node._layout.x}px; top:${node._layout.y}px; width:${node._layout.width}px; min-height:${node._layout.height}px;"
-            >
-              <h4>${node.title}</h4>
-              <p class="muted node-meta">${formatNodeLabel(node)}</p>
-              <div class="badge-row">
-                <span class="${badgeClass(node.isCompleted, node.isUnlocked)}">${statusText(node.isCompleted, node.isUnlocked)}</span>
-                <span class="badge unlocked">${node.completedMissions || node.missions.filter((m) => m.isCompleted).length}/${
-                  node.totalMissions || node.missions.length
-                }</span>
-              </div>
-            </article>
-          `
-            )
+            .map((node) => {
+              const stateClass  = node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked";
+              const branchClass = `branch--${nodeBranchType(node)}`;
+              const done  = node.missions.filter((m) => m.isCompleted).length;
+              const total = node.missions.length;
+              const icon  = nodeIcon(node.id);
+              const stateIcon = node.isCompleted ? "✓" : node.isUnlocked ? "▶" : "🔒";
+              return `
+                <article
+                  class="tree-node ${stateClass} ${branchClass}"
+                  data-node-id="${node.id}"
+                  style="left:${node._layout.x}px; top:${node._layout.y}px; width:${node._layout.width}px;"
+                  tabindex="0"
+                  role="button"
+                  aria-label="${node.title} — ${stateClass}"
+                >
+                  <div class="tree-node-state-bar"></div>
+                  <div class="tree-node-icon" aria-hidden="true">${icon}</div>
+                  <p class="tree-node-title">${node.title}</p>
+                  <div class="tree-node-footer">
+                    <span class="tree-node-progress">[${done}/${total}]</span>
+                    <span class="tree-node-status-icon">${stateIcon}</span>
+                  </div>
+                </article>
+              `;
+            })
             .join("")}
         </div>
       </div>
@@ -902,20 +1007,31 @@ function renderFullPage(current, tree, activeMissions, unlockedFeatures) {
 
   return `
     <section class="progress-full-layout">
+
+      <!-- CANVAS DA ÁRVORE (coluna principal) -->
       <div class="progress-full-main">
-        <h3>Arvore Completa</h3>
+        <div class="progress-full-main-header">
+          <span class="progress-tree-legend">
+            <span class="legend-dot legend-dot--completed"></span>Concluído
+          </span>
+          <span class="progress-tree-legend">
+            <span class="legend-dot legend-dot--unlocked"></span>Disponível
+          </span>
+          <span class="progress-tree-legend">
+            <span class="legend-dot legend-dot--locked"></span>Bloqueado
+          </span>
+          <span class="progress-tree-hint muted">Arraste para navegar · Scroll para zoom · Duplo-clique para encaixar</span>
+        </div>
         ${renderTreeCanvas(tree)}
       </div>
 
+      <!-- PAINEL LATERAL -->
       <aside class="progress-full-side">
         ${renderSummary(current, unlockedFeatures)}
         <section id="treeNodeDetailsPanelHost">${renderNodeFocusDetails(currentNode, tree)}</section>
         ${renderCurrentLearning(current, tree)}
-        <h3>Missoes Ativas</h3>
-        ${renderActiveMissions(activeMissions)}
-        ${renderUnlockedOverview(tree, unlockedFeatures)}
-        ${renderMissionDetails(tree)}
       </aside>
+
     </section>
   `;
 }
