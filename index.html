@@ -4,40 +4,181 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FarmBot Lab - Treino JS</title>
+    <!-- Anti-FOUC: aplica o tema salvo antes do primeiro paint, evitando flash -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("farmbot.theme");
+          var valid = ["claro", "floresta", "noite", "dark"];
+          document.documentElement.setAttribute(
+            "data-theme",
+            valid.indexOf(t) !== -1 ? t : "claro"
+          );
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "claro");
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/game.css" />
   </head>
   <body>
     <div class="app-shell">
+
+      <!-- TOPBAR -->
       <header class="topbar">
-        <div class="topbar-main">
+        <div class="topbar-brand topbar-main">
           <h1>FarmBot Lab</h1>
           <p>Replica didatica inspirada em The Farmer Was Replaced</p>
         </div>
+
+
         <div class="topbar-actions">
-          <button id="openProgressModalBtn" class="btn">Progresso Rapido</button>
-          <button id="openProgressPageBtn" class="btn btn-primary">Arvore de Missoes</button>
-          <button id="openDevTreePageBtn" class="btn btn-primary">Arvore de Desenvolvimento</button>
+          <button id="themeToggleBtn" class="btn btn-icon" aria-label="Alternar modo escuro/claro" title="Alternar tema">🌙</button>
+          <button id="openProgressModalBtn" class="btn">Progresso Rápido</button>
+          <button id="openProgressPageBtn" class="btn btn-primary">🎯 Missões</button>
+          <button id="openDevTreePageBtn" class="btn btn-primary">⚙ Desenvolvimento</button>
         </div>
       </header>
 
+      <!-- LAYOUT PRINCIPAL -->
       <main class="layout">
+
+        <!-- PAINEL DE CÓDIGO -->
         <section class="panel code-panel">
           <div class="panel-head">
-            <h2>Código JavaScript</h2>
-            <div class="actions">
-              <button id="runBtn" class="btn btn-primary">Executar</button>
-              <button id="stopBtn" class="btn">Parar</button>
-              <button id="resetBtn" class="btn">Resetar</button>
+            <div class="code-panel-tabs-wrapper">
+              <div class="code-panel-tabs">
+                <button class="code-tab-btn is-active" data-tab="code-editor">📝 Código</button>
+                <button class="code-tab-btn" data-tab="code-reference">📚 Referência</button>
+                <button class="code-tab-btn" data-tab="code-settings">⚙️ Configurações</button>
+              </div>
+            </div>
+            <div class="actions" id="codeActions">
+              <button id="runBtn" class="btn btn-primary btn-sm">▶ Executar</button>
+              <button id="stopBtn" class="btn btn-sm" disabled>⏹ Parar</button>
+              <button id="resetBtn" class="btn btn-ghost btn-sm">↺ Resetar</button>
             </div>
           </div>
-          <div id="editor"></div>
-          <p class="hint">API principal: moverDireita(), moverEsquerda(), moverCima(), moverBaixo(), plantar(), colher() (ingles legado ainda funciona)</p>
+
+          <!-- ABA: EDITOR -->
+          <div class="code-tab-content is-active" id="code-editor-tab">
+            <div id="editor"></div>
+          </div>
+
+          <!-- ABA: REFERÊNCIA -->
+          <div class="code-tab-content" id="code-reference-tab">
+            <div class="reference-content">
+              <h3>Referência de Comandos da API</h3>
+              <ul class="api-list">
+                <li><code>moverDireita()</code> — move o bot uma célula para a direita</li>
+                <li><code>moverEsquerda()</code> — move para a esquerda</li>
+                <li><code>moverCima()</code> — move para cima</li>
+                <li><code>moverBaixo()</code> — move para baixo</li>
+                <li><code>plantar("tipo")</code> — planta na célula atual: <code>capim</code>, <code>trigo</code>, <code>milho</code>, <code>arvore</code>, <code>girasol</code>, <code>morango</code></li>
+                <li><code>colher()</code> — colhe o que está na célula atual</li>
+              </ul>
+              <p class="hint">Aliases em inglês também funcionam: moveRight(), moveLeft(), moveUp(), moveDown(), plant(), harvest()</p>
+            </div>
+          </div>
+
+          <!-- ABA: CONFIGURAÇÕES -->
+          <div class="code-tab-content" id="code-settings-tab">
+            <div class="settings-content">
+              <!-- Paleta -->
+              <div class="settings-section">
+                <h4>🎨 Paleta de Cores</h4>
+                <div class="settings-group">
+                  <label class="settings-option">
+                    <input type="radio" name="palette" value="neutral-modern" />
+                    <span>Neutral Modern</span>
+                  </label>
+                  <label class="settings-option">
+                    <input type="radio" name="palette" value="earthy-modern" />
+                    <span>Earthy Modern</span>
+                  </label>
+                  <label class="settings-option">
+                    <input type="radio" name="palette" value="slate-indigo" />
+                    <span>Slate/Indigo</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Acentos -->
+              <div class="settings-section">
+                <h4>✨ Cor de Destaque</h4>
+                <div class="settings-accents">
+                  <label class="accent-small" data-accent="amber" title="Âmbar">
+                    <input type="radio" name="accent" value="amber" />
+                    <span class="accent-dot" style="background: #d97706;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="indigo" title="Índigo">
+                    <input type="radio" name="accent" value="indigo" />
+                    <span class="accent-dot" style="background: #4f46e5;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="teal" title="Teal">
+                    <input type="radio" name="accent" value="teal" />
+                    <span class="accent-dot" style="background: #0d9488;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="orange" title="Laranja">
+                    <input type="radio" name="accent" value="orange" />
+                    <span class="accent-dot" style="background: #ea580c;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="emerald" title="Esmeralda">
+                    <input type="radio" name="accent" value="emerald" />
+                    <span class="accent-dot" style="background: #10b981;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="ruby" title="Rubi">
+                    <input type="radio" name="accent" value="ruby" />
+                    <span class="accent-dot" style="background: #e11d48;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="sky" title="Azul Céu">
+                    <input type="radio" name="accent" value="sky" />
+                    <span class="accent-dot" style="background: #0ea5e9;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="violet" title="Ametista">
+                    <input type="radio" name="accent" value="violet" />
+                    <span class="accent-dot" style="background: #8b5cf6;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="gold" title="Ouro">
+                    <input type="radio" name="accent" value="gold" />
+                    <span class="accent-dot" style="background: #ca8a04;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="lime" title="Limão">
+                    <input type="radio" name="accent" value="lime" />
+                    <span class="accent-dot" style="background: #65a30d;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="cyan" title="Ciano">
+                    <input type="radio" name="accent" value="cyan" />
+                    <span class="accent-dot" style="background: #0891b2;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="pink" title="Rosa">
+                    <input type="radio" name="accent" value="pink" />
+                    <span class="accent-dot" style="background: #db2777;"></span>
+                  </label>
+                  <label class="accent-small" data-accent="carbon" title="Carbono">
+                    <input type="radio" name="accent" value="carbon" />
+                    <span class="accent-dot" style="background: #334155;"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
+        <!-- DIVISOR REDIMENSIONÁVEL -->
+        <div class="layout-resizer" id="layoutResizer" aria-hidden="true"></div>
+
+        <!-- PAINEL DA CENA -->
         <section class="panel scene-panel">
-          <div class="panel-head">
-            <h2>Plantação</h2>
+          <div class="panel-head scene-head">
+            <div class="scene-stats-mini">
+              <span class="stat-mini" title="Total de movimentos realizados">🚜 <span id="sceneStatMoves">0</span></span>
+              <span class="stat-mini" title="Total de plantios realizados">🌱 <span id="sceneStatPlants">0</span></span>
+              <span class="stat-mini" title="Total de colheitas realizadas">🌾 <span id="sceneStatHarvests">0</span></span>
+              <span class="stat-mini stat-mini--mission" title="Missão ativa atual">🎯 <span id="sceneStatMission">—</span></span>
+            </div>
             <div class="scene-controls">
               <label class="avatar-wrap" for="avatarSelect">
                 Veículo
@@ -47,44 +188,58 @@
                   <option value="bot">Robô</option>
                 </select>
               </label>
-              <label class="zoom-wrap">
+              <label class="zoom-wrap" for="zoomSlider">
                 Zoom
                 <input id="zoomSlider" type="range" min="0.7" max="2.2" value="1.3" step="0.1" />
               </label>
             </div>
           </div>
-          <aside id="inventoryHud" class="inventory-hud" aria-live="polite"></aside>
-          <div id="scene"></div>
-          <pre id="log"></pre>
+
+          <div id="scene">
+            <aside id="inventoryHud" class="inventory-hud" aria-live="polite"></aside>
+          </div>
+
+          <!-- Log com header e botão limpar -->
+          <div class="log-panel">
+            <div class="log-panel-head">
+              <span class="log-panel-title">Log de Execução</span>
+              <button id="clearLogBtn" class="btn btn-xs btn-ghost" title="Limpar log">✕ Limpar</button>
+            </div>
+            <pre id="log"></pre>
+          </div>
         </section>
+
       </main>
     </div>
 
+    <!-- MODAL: Progresso Rápido -->
     <div id="progressModal" class="progress-overlay" aria-hidden="true">
-      <section class="progress-surface progress-modal" role="dialog" aria-label="Progresso rapido">
+      <section class="progress-surface progress-modal" role="dialog" aria-label="Progresso rápido">
         <div class="progress-head">
-          <h3>Progresso Rapido</h3>
-          <button id="closeProgressModalBtn" class="btn">Fechar</button>
+          <h3>Progresso Rápido</h3>
+          <button id="closeProgressModalBtn" class="btn btn-ghost btn-sm">✕ Fechar</button>
         </div>
         <div id="progressModalContent" class="progress-content"></div>
       </section>
     </div>
 
+    <!-- PÁGINA: Árvore de Missões -->
     <div id="progressPage" class="progress-page" aria-hidden="true">
       <section class="progress-surface progress-page-panel">
         <div class="progress-head">
-          <h2>Arvore de Missoes e Desbloqueios</h2>
-          <button id="closeProgressPageBtn" class="btn">Voltar ao Jogo</button>
+          <h2>Árvore de Missões e Desbloqueios</h2>
+          <button id="closeProgressPageBtn" class="btn btn-primary btn-sm">← Voltar ao Jogo</button>
         </div>
         <div id="progressPageContent" class="progress-content"></div>
       </section>
     </div>
 
+    <!-- PÁGINA: Árvore de Desenvolvimento -->
     <div id="devTreePage" class="progress-page" aria-hidden="true">
       <section class="progress-surface progress-page-panel">
         <div class="progress-head">
-          <h2>Arvore Completa de Desenvolvimento</h2>
-          <button id="closeDevTreePageBtn" class="btn">Voltar ao Jogo</button>
+          <h2>Árvore de Desenvolvimento</h2>
+          <button id="closeDevTreePageBtn" class="btn btn-primary btn-sm">← Voltar ao Jogo</button>
         </div>
         <div id="devTreePageContent" class="progress-content"></div>
       </section>

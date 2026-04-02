@@ -1,6 +1,7 @@
 import { createFarmWorld } from "./core/farmWorld.js";
 import { createProgramRunner } from "./core/programRunner.js";
 import { createGamePhases } from "./core/gamePhases.js";
+import { createGameController } from "./core/gameController.js";
 import { createThreeFarmView } from "./render/threeFarmView.js";
 import { createEditor } from "./ui/editor.js";
 import { createLogger } from "./ui/logger.js";
@@ -36,6 +37,16 @@ const avatarSelect = document.querySelector("#avatarSelect");
 const sceneRoot = document.querySelector("#scene");
 const inventoryHudEl = document.querySelector("#inventoryHud");
 const scenePanelEl = document.querySelector(".scene-panel");
+const themeToggleBtn = document.querySelector("#themeToggleBtn");
+const themeSelect    = document.querySelector("#themeSelect");
+const clearLogBtn    = document.querySelector("#clearLogBtn");
+// Stats na cena
+const sceneStatMoves = document.querySelector("#sceneStatMoves");
+const sceneStatPlants = document.querySelector("#sceneStatPlants");
+const sceneStatHarvests = document.querySelector("#sceneStatHarvests");
+const sceneStatMission = document.querySelector("#sceneStatMission");
+
+const THEME_STORAGE_KEY = "farmbot.theme";
 
 const INVENTORY_ITEM_ORDER = [
   "capim",
@@ -73,199 +84,143 @@ const INVENTORY_ITEM_RULE_HINTS = {
   milho: "Regra futura: exigir upgrade de plantio avancado.",
 };
 
-const INVENTORY_UI_STORAGE_KEY = "farmbot.inventory.ui.v1";
-const INVENTORY_MODES = {
-  TOPBAR: "topbar",
-  OVERLAY: "overlay",
-};
-
-const INVENTORY_FLOAT_CARD_WIDTH = 320;
-const INVENTORY_FLOAT_CARD_HEIGHT = 170;
-const INVENTORY_FLOAT_GAP = 10;
 
 function debugAlert(message) {
   if (!DEBUG_ALERTS) return;
   alert(`[DEBUG] ${message}`);
 }
 
+// ─── Tema visual ─────────────────────────────────────────────────────────────
+
+const VALID_THEMES   = ["claro", "floresta", "noite"];
+const DARK_THEME     = "noite";
+const DEFAULT_THEME  = "claro";
+let   lastLightTheme = DEFAULT_THEME;  // lembra qual tema claro estava ativo
+
+function applyTheme(theme) {
+  // Migração: "dark"/"light" legados → novos nomes
+  const migrated = theme === "dark" ? DARK_THEME : (theme === "light" ? DEFAULT_THEME : theme);
+  const resolved  = VALID_THEMES.includes(migrated) ? migrated : DEFAULT_THEME;
+
+  if (resolved !== DARK_THEME) lastLightTheme = resolved;
+
+  document.documentElement.setAttribute("data-theme", resolved);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.textContent = resolved === DARK_THEME ? "☀️" : "🌙";
+    themeToggleBtn.title = resolved === DARK_THEME ? "Modo claro" : "Modo escuro";
+  }
+
+  if (themeSelect) themeSelect.value = resolved;
+
+  try { localStorage.setItem(THEME_STORAGE_KEY, resolved); } catch (_) {}
+
+  if (typeof editor !== "undefined" && editor && typeof editor.setTheme === "function") {
+    editor.setTheme(resolved);
+  }
+}
+
+function initTheme() {
+  let saved = DEFAULT_THEME;
+  try { saved = localStorage.getItem(THEME_STORAGE_KEY) || DEFAULT_THEME; } catch (_) {}
+  applyTheme(saved);
+}
+
+// ─── Sistema de Paletas e Acentos ───────────────────────────────────────────
+
+const PALETTE_STORAGE_KEY = "farmbot.palette";
+const ACCENT_STORAGE_KEY = "farmbot.accent";
+const DEFAULT_PALETTE = "neutral-modern";
+const DEFAULT_ACCENT = "teal";
+
+const AVAILABLE_PALETTES = ["neutral-modern", "earthy-modern", "slate-indigo"];
+const AVAILABLE_ACCENTS = [
+  "amber", "indigo", "teal", "orange", "emerald", "ruby",
+  "sky", "violet", "gold", "lime", "cyan", "pink", "carbon"
+];
+
+let currentPalette = DEFAULT_PALETTE;
+let currentAccent = DEFAULT_ACCENT;
+
+function applyPalette(palette) {
+  const resolved = AVAILABLE_PALETTES.includes(palette) ? palette : DEFAULT_PALETTE;
+  document.documentElement.setAttribute("data-palette", resolved);
+  currentPalette = resolved;
+  try { localStorage.setItem(PALETTE_STORAGE_KEY, resolved); } catch (_) {}
+}
+
+function applyAccent(accent) {
+  const resolved = AVAILABLE_ACCENTS.includes(accent) ? accent : DEFAULT_ACCENT;
+  document.documentElement.setAttribute("data-accent", resolved);
+  currentAccent = resolved;
+  try { localStorage.setItem(ACCENT_STORAGE_KEY, resolved); } catch (_) {}
+}
+
+function initPaletteAndAccent() {
+  let savedPalette = DEFAULT_PALETTE;
+  let savedAccent = DEFAULT_ACCENT;
+
+  try {
+    savedPalette = localStorage.getItem(PALETTE_STORAGE_KEY) || DEFAULT_PALETTE;
+    savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY) || DEFAULT_ACCENT;
+  } catch (_) {}
+
+  applyPalette(savedPalette);
+  applyAccent(savedAccent);
+}
+
+// ─── HUD de estatísticas na topbar ───────────────────────────────────────────
+
+function updateStatsHud() {
+  const phase = gamePhases.getCurrentPhase();
+  const stats = phase.progress || {};
+  const activeMissions = gamePhases.getActiveMissions(1);
+  const missionTitle = activeMissions.length ? activeMissions[0].title : phase.title || "—";
+
+  // Atualiza stats na cena
+  if (sceneStatMoves)    sceneStatMoves.textContent    = stats.moves    ?? 0;
+  if (sceneStatPlants)   sceneStatPlants.textContent   = stats.plants   ?? 0;
+  if (sceneStatHarvests) sceneStatHarvests.textContent = stats.harvests ?? 0;
+  if (sceneStatMission)  sceneStatMission.textContent  = missionTitle;
+}
+
+// ─── Estado dos botões Executar / Parar ──────────────────────────────────────
+
+function updateRunStopState() {
+  const running = runner.isExecuting();
+  if (runBtn) {
+    runBtn.disabled = running;
+    runBtn.classList.toggle("is-running", running);
+    runBtn.querySelector(".btn-label") && (runBtn.querySelector(".btn-label").textContent = running ? "Executando…" : "Executar");
+  }
+  if (stopBtn) {
+    stopBtn.disabled = !running;
+  }
+}
+
 const logger = createLogger(logEl);
 
 let progressionUI = null;
-let inventoryHudEventsBound = false;
-let selectedInventoryItemId = null;
-let selectedInventoryFloatPosition = { left: 0, top: 0 };
-
-function computeInventoryFloatPosition(itemEl) {
-  if (!inventoryHudEl || !itemEl) {
-    return { left: 0, top: 0 };
-  }
-
-  const hudRect = inventoryHudEl.getBoundingClientRect();
-  const itemRect = itemEl.getBoundingClientRect();
-
-  const maxLeft = Math.max(0, hudRect.width - INVENTORY_FLOAT_CARD_WIDTH - 8);
-  let left = itemRect.right - hudRect.left + INVENTORY_FLOAT_GAP;
-
-  if (left > maxLeft) {
-    left = itemRect.left - hudRect.left - INVENTORY_FLOAT_CARD_WIDTH - INVENTORY_FLOAT_GAP;
-  }
-
-  left = Math.max(0, Math.min(left, maxLeft));
-
-  const maxTop = Math.max(0, hudRect.height - INVENTORY_FLOAT_CARD_HEIGHT - 8);
-  const top = Math.max(0, Math.min(itemRect.top - hudRect.top, maxTop));
-
-  return {
-    left: Math.round(left),
-    top: Math.round(top),
-  };
-}
-
-function loadInventoryUiSettings() {
-  try {
-    const raw = localStorage.getItem(INVENTORY_UI_STORAGE_KEY);
-    if (!raw) {
-      return {
-        mode: INVENTORY_MODES.TOPBAR,
-        collapsed: false,
-      };
-    }
-
-    const parsed = JSON.parse(raw);
-    const mode = Object.values(INVENTORY_MODES).includes(parsed.mode)
-      ? parsed.mode
-      : INVENTORY_MODES.TOPBAR;
-
-    return {
-      mode,
-      collapsed: Boolean(parsed.collapsed),
-    };
-  } catch {
-    return {
-      mode: INVENTORY_MODES.TOPBAR,
-      collapsed: false,
-    };
-  }
-}
-
-function saveInventoryUiSettings(settings) {
-  try {
-    localStorage.setItem(INVENTORY_UI_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // Ignora falhas de persistencia (modo privado, quota, etc.).
-  }
-}
-
-const inventoryUiSettings = loadInventoryUiSettings();
-
-function bindInventoryHudEvents() {
-  if (!inventoryHudEl || inventoryHudEventsBound) return;
-
-  inventoryHudEl.addEventListener("click", (event) => {
-    const itemEl = event.target.closest("[data-inventory-item]");
-    if (itemEl) {
-      const itemId = itemEl.dataset.inventoryItem;
-      if (selectedInventoryItemId === itemId) {
-        selectedInventoryItemId = null;
-      } else {
-        selectedInventoryItemId = itemId;
-        selectedInventoryFloatPosition = computeInventoryFloatPosition(itemEl);
-      }
-      renderInventoryHud();
-      return;
-    }
-
-    const actionEl = event.target.closest("[data-inventory-action]");
-    if (!actionEl) return;
-
-    const action = actionEl.dataset.inventoryAction;
-    if (action === "toggle-collapse") {
-      inventoryUiSettings.collapsed = !inventoryUiSettings.collapsed;
-      saveInventoryUiSettings(inventoryUiSettings);
-      renderInventoryHud();
-      return;
-    }
-
-    if (action === "close-item-detail") {
-      selectedInventoryItemId = null;
-      renderInventoryHud();
-    }
-
-  });
-
-  inventoryHudEventsBound = true;
-}
 
 function renderInventoryHud() {
   if (!inventoryHudEl) return;
 
   const inventoryRows = gamePhases.getItemInventory();
   const inventoryMap = new Map(inventoryRows.map((row) => [row.itemId, row.quantity]));
-  const allIds = [...INVENTORY_ITEM_ORDER];
 
-  const modeClass =
-    inventoryUiSettings.mode === INVENTORY_MODES.OVERLAY
-      ? "mode-overlay"
-      : "mode-topbar";
-  const expandedClass = inventoryUiSettings.collapsed ? "" : "is-expanded-floating";
-  const selectedLabel = INVENTORY_ITEM_LABELS[selectedInventoryItemId] || selectedInventoryItemId;
-  const selectedIcon = INVENTORY_ITEM_ICONS[selectedInventoryItemId] || "📦";
-  const selectedQty = selectedInventoryItemId ? inventoryMap.get(selectedInventoryItemId) || 0 : 0;
-  const selectedDesc =
-    INVENTORY_ITEM_RULE_HINTS[selectedInventoryItemId] ||
-    "Regra futura: definir pre-requisito para liberar este plantio.";
-  const selectedFloatStyle = `left:${selectedInventoryFloatPosition.left}px;top:${selectedInventoryFloatPosition.top}px;`;
-
-  inventoryHudEl.className = `inventory-hud ${modeClass} ${expandedClass} ${
-    inventoryUiSettings.collapsed ? "is-collapsed" : ""
-  }`;
-
-  if (scenePanelEl) {
-    scenePanelEl.classList.toggle(
-      "inventory-mode-overlay",
-      inventoryUiSettings.mode === INVENTORY_MODES.OVERLAY
-    );
-  }
-
+  inventoryHudEl.className = "inventory-hud";
   inventoryHudEl.innerHTML = `
-    <div class="inventory-hud-head">
-      <div class="inventory-toolbar">
-        <button class="btn inventory-btn" data-inventory-action="toggle-collapse">
-          ${inventoryUiSettings.collapsed ? "Expandir" : "Recolher"}
-        </button>
-      </div>
+    <div class="inventory-strip">
+      ${INVENTORY_ITEM_ORDER.map((itemId) => {
+        const icon = INVENTORY_ITEM_ICONS[itemId] || "📦";
+        const label = INVENTORY_ITEM_LABELS[itemId] || itemId;
+        const qty = inventoryMap.get(itemId) || 0;
+        return `<div class="inventory-strip-item" title="${label}">
+          <span class="item-icon">${icon}</span>
+          <span class="item-qty">${qty}</span>
+        </div>`;
+      }).join("")}
     </div>
-    <div class="inventory-list ${inventoryUiSettings.collapsed ? "collapsed-view" : "expanded-view"}">
-      ${allIds
-        .map((itemId) => {
-          const label = INVENTORY_ITEM_LABELS[itemId] || itemId;
-          const icon = INVENTORY_ITEM_ICONS[itemId] || "📦";
-          const description =
-            INVENTORY_ITEM_RULE_HINTS[itemId] ||
-            "Regra futura: definir pre-requisito para liberar este plantio.";
-          const amount = inventoryMap.get(itemId) || 0;
-          const selectedClass = selectedInventoryItemId === itemId ? "is-selected" : "";
-          if (inventoryUiSettings.collapsed) {
-            return `<div class="inventory-item collapsed ${selectedClass}" data-inventory-item="${itemId}" title="${label}"><span class="item-icon">${icon}</span><span class="item-qty">${amount}</span></div>`;
-          } else {
-            return `<div class="inventory-item expanded ${selectedClass}" data-inventory-item="${itemId}"><span class="item-icon">${icon}</span><div class="item-info"><div class="item-main"><span class="item-label">${label}</span><span class="item-qty">Qtd: ${amount}</span></div><p class="item-desc">${description}</p></div></div>`;
-          }
-        })
-        .join("")}
-    </div>
-    ${selectedInventoryItemId
-      ? `<div class="inventory-item-float" style="${selectedFloatStyle}">
-          <button class="btn inventory-float-close" data-inventory-action="close-item-detail">Fechar</button>
-          <div class="inventory-item-float-head">
-            <span class="item-icon">${selectedIcon}</span>
-            <div>
-              <p class="inventory-item-float-title">${selectedLabel}</p>
-              <p class="inventory-item-float-qty">Qtd atual: ${selectedQty}</p>
-            </div>
-          </div>
-          <p class="inventory-item-float-desc">${selectedDesc}</p>
-        </div>`
-      : ""}
   `;
 }
 
@@ -280,6 +235,7 @@ const gamePhases = createGamePhases({
     logger.append(`No atual: ${phase.title}`);
     logger.append(`Progresso geral: ${phase.progressLabel}`);
     renderInventoryHud();
+    updateStatsHud();
     if (progressionUI) {
       progressionUI.render();
     }
@@ -322,83 +278,19 @@ const view = createThreeFarmView({
   onDebugError: debugAlert,
 });
 
+const gameController = createGameController({
+  world,
+  gamePhases,
+  view,
+  onLog: logger.append,
+  onUIUpdate: () => {
+    renderInventoryHud();
+    updateStatsHud();
+  },
+});
+
 async function performAction(action) {
-  const command = typeof action === "string" ? { type: action, args: [] } : action;
-  const actionType = command.type;
-
-  if (actionType === "right") {
-    const result = world.moveBy(1, 0);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    return;
-  }
-
-  if (actionType === "left") {
-    const result = world.moveBy(-1, 0);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    return;
-  }
-
-  if (actionType === "up") {
-    const result = world.moveBy(0, -1);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    return;
-  }
-
-  if (actionType === "down") {
-    const result = world.moveBy(0, 1);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    return;
-  }
-
-  if (actionType === "plant") {
-    const cropArg = command.args && command.args.length > 0 ? command.args[0] : "generic";
-    const cropType = typeof cropArg === "string" && cropArg.trim() ? cropArg.trim().toLowerCase() : "generic";
-    const result = world.plant(cropType);
-    gamePhases.recordEvent("plant", { cropType: result.crop.type });
-    view.setCrop(result.x, result.y, result.crop.type);
-    logger.append(`Plantou ${result.crop.type} em (${result.x}, ${result.y})`);
-    renderInventoryHud();
-    return;
-  }
-
-  if (actionType === "harvest") {
-    const result = world.harvest();
-    if (result.wasPlanted) {
-      const cropType = result.harvestedCrop && result.harvestedCrop.type ? result.harvestedCrop.type : "generic";
-      gamePhases.recordEvent("harvest", { cropType });
-    }
-    view.setCrop(result.x, result.y, null);
-    logger.append(`Colheu em (${result.x}, ${result.y})`);
-    renderInventoryHud();
-  }
+  return gameController.executeAction(action);
 }
 
 const runner = createProgramRunner({
@@ -429,6 +321,8 @@ function resetWorld() {
   view.reset(world.getSnapshot());
   logger.append("Mundo resetado");
   renderInventoryHud();
+  updateStatsHud();
+  updateRunStopState();
 }
 
 function setupDebugHooks() {
@@ -454,11 +348,22 @@ window.setCropGrowthSettings = (patch) => {
 
 runBtn.addEventListener("click", () => {
   gamePhases.recordEvent("run");
-  runner.run();
+  // run() é assíncrono: isExecuting vira true sincronamente no início da função,
+  // então updateRunStopState() captura o estado correto logo após a chamada.
+  const runPromise = runner.run();
+  updateRunStopState();
+  updateStatsHud();
+  // Restaura estado dos botões quando a execução terminar
+  if (runPromise && typeof runPromise.finally === "function") {
+    runPromise.finally(() => {
+      updateRunStopState();
+    });
+  }
 });
 
 stopBtn.addEventListener("click", () => {
   runner.stop();
+  setTimeout(updateRunStopState, 60);
 });
 
 resetBtn.addEventListener("click", resetWorld);
@@ -477,12 +382,164 @@ window.addEventListener("resize", () => {
   view.resize();
 });
 
+// ─── Divisor redimensionável entre código e cena ─────────────────────────────
+
+(function initLayoutResizer() {
+  const resizer = document.querySelector("#layoutResizer");
+  const codePanel = document.querySelector(".code-panel");
+  const layout = document.querySelector(".layout");
+  if (!resizer || !codePanel || !layout) return;
+
+  const STORAGE_KEY = "farmbot.layout.codePanelWidth";
+  const MIN_WIDTH = 220;
+
+  // Restaura largura salva
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const w = Number(saved);
+      if (w >= MIN_WIDTH) {
+        codePanel.style.flex = `0 0 ${w}px`;
+        codePanel.style.width = `${w}px`;
+      }
+    }
+  } catch (_) {}
+
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  resizer.addEventListener("mousedown", (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = codePanel.getBoundingClientRect().width;
+    resizer.classList.add("is-dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const layoutWidth = layout.getBoundingClientRect().width;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(MIN_WIDTH, Math.min(startWidth + delta, layoutWidth - MIN_WIDTH - 10));
+    codePanel.style.flex = `0 0 ${newWidth}px`;
+    codePanel.style.width = `${newWidth}px`;
+    view.resize();
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove("is-dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    try {
+      localStorage.setItem(STORAGE_KEY, codePanel.getBoundingClientRect().width);
+    } catch (_) {}
+    view.resize();
+  });
+})();
+
 setupDebugHooks();
-bindInventoryHudEvents();
 resetWorld();
 view.resize();
 progressionUI.render();
 renderInventoryHud();
+
+// Inicializa tema, sincroniza editor e atualiza HUD de estatísticas
+initTheme();
+initPaletteAndAccent();
+editor.setTheme(document.documentElement.getAttribute("data-theme") || DEFAULT_THEME);
+
+// Toggle 🌙/☀️ — alterna entre Noite e o último tema claro usado
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || DEFAULT_THEME;
+    const next = current === DARK_THEME ? lastLightTheme : DARK_THEME;
+    applyTheme(next);
+    editor.setTheme(next);
+  });
+}
+
+// Seletor de tema — aplica o tema escolhido na lista
+if (themeSelect) {
+  themeSelect.addEventListener("change", () => {
+    applyTheme(themeSelect.value);
+    editor.setTheme(themeSelect.value);
+  });
+}
+
+// ─── Sistema de Abas do Painel de Código ───────────────────────────────────
+
+function initCodePanelTabs() {
+  const tabButtons = document.querySelectorAll(".code-tab-btn");
+  const tabContents = document.querySelectorAll(".code-tab-content");
+  const codeActions = document.querySelector("#codeActions");
+
+  function updateActionsVisibility(tabName) {
+    // Mostra botões de ação apenas na aba de código
+    if (codeActions) {
+      codeActions.style.display = tabName === "code-editor" ? "flex" : "none";
+    }
+  }
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tabName = btn.dataset.tab;
+
+      // Remove "is-active" de todos os botões e conteúdos
+      tabButtons.forEach(b => b.classList.remove("is-active"));
+      tabContents.forEach(c => c.classList.remove("is-active"));
+
+      // Adiciona "is-active" ao botão e conteúdo clicados
+      btn.classList.add("is-active");
+      document.getElementById(`${tabName}-tab`).classList.add("is-active");
+
+      // Atualiza visibilidade dos botões de ação
+      updateActionsVisibility(tabName);
+
+      // Dispara redimensionamento do editor se for a aba de código
+      if (tabName === "code-editor" && typeof editor !== "undefined" && editor) {
+        setTimeout(() => editor.resize?.(), 50);
+      }
+    });
+  });
+
+  // Inicializa visibilidade dos botões (aba de código começa ativa)
+  updateActionsVisibility("code-editor");
+
+  // Sincroniza inputs de configurações com preferências atuais
+  const settingsTab = document.getElementById("code-settings-tab");
+  if (settingsTab) {
+    const paletteRadios = settingsTab.querySelectorAll('input[name="palette"]');
+    const accentRadios = settingsTab.querySelectorAll('input[name="accent"]');
+
+    paletteRadios.forEach(radio => {
+      radio.checked = radio.value === currentPalette;
+      radio.addEventListener("change", () => {
+        applyPalette(radio.value);
+      });
+    });
+
+    accentRadios.forEach(radio => {
+      radio.checked = radio.value === currentAccent;
+      radio.addEventListener("change", () => {
+        applyAccent(radio.value);
+      });
+    });
+  }
+}
+
+initCodePanelTabs();
+
+if (clearLogBtn) {
+  clearLogBtn.addEventListener("click", () => {
+    logger.clear();
+  });
+}
+
+updateStatsHud();
 
 window.gamePhases = {
   getCurrent: () => gamePhases.getCurrentPhase(),
@@ -523,6 +580,7 @@ window.gamePhases = {
     const state = gamePhases.getWorldState();
     applyWorldDimensions(state.width, state.height, "reset-progress");
     renderInventoryHud();
+    updateStatsHud();
   },
 };
 

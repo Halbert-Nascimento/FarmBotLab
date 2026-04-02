@@ -1,0 +1,203 @@
+/* ============================================================
+   GAME.CSS — Estilos exclusivos do painel de jogo
+   Contém: cena 3D, inventário (barra compacta), log de execução,
+   controles de cena.
+   Separado do style.css para evitar conflitos com a interface da página.
+   ============================================================ */
+
+/* ============================================================
+   SCENE PANEL
+   ============================================================ */
+
+.scene-panel {
+  position: relative;
+}
+
+#scene {
+  flex: 1;               /* Ocupa todo o espaço disponível */
+  min-height: 0;         /* Permite encolher no flex column */
+  overflow: hidden;
+  position: relative;    /* Contexto para o HUD de inventário */
+}
+
+.scene-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px !important;
+  background: var(--color-hud-bg) !important;
+  backdrop-filter: blur(4px);
+}
+
+.scene-stats-mini {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.stat-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.stat-mini span {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.scene-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.zoom-wrap,
+.avatar-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.03em;
+}
+
+#avatarSelect {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-bg-surface-raised);
+  color: var(--color-text-primary);
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+#avatarSelect:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+#zoomSlider {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  width: 88px;
+  height: 4px;
+}
+
+/* ============================================================
+   INVENTÁRIO — HUD flutuante sobre o canvas 3D
+   Sobreposto no canto superior esquerdo do mundo.
+   Não ocupa espaço no layout (position: absolute).
+   ============================================================ */
+
+.inventory-hud {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-hud-bg);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px var(--color-shadow);
+  max-width: calc(100% - 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.inventory-hud::-webkit-scrollbar {
+  display: none;
+}
+
+.inventory-strip {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.inventory-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 32px;
+}
+
+.inventory-strip-item .item-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.inventory-strip-item .item-qty {
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+/* ============================================================
+   LOG DE EXECUÇÃO
+   ============================================================ */
+
+.log-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border);
+}
+
+.log-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: var(--color-hud-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log-panel-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+  color: var(--color-text-primary);
+}
+
+#log {
+  margin: 0;
+  height: 100px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  font-size: 0.85rem;
+  background: var(--color-log-bg);
+  color: var(--color-log-text);
+}
+
+/* ============================================================
+   RESPONSIVO
+   ============================================================ */
+
+@media (max-width: 980px) {
+  .scene-controls {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .inventory-strip {
+    gap: 14px;
+  }
+}

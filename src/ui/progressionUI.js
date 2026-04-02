@@ -30,56 +30,98 @@ function formatMissionLabel(mission) {
   return `Missao ${ordinal} - ${mission.title}`;
 }
 
+// ── Extrai % de progresso de "atual/total" ──
+function missionProgressPct(mission) {
+  const m = (mission.progressLabel || "").match(/(\d+)[^\d]+(\d+)/);
+  if (!m) return 0;
+  const total = parseInt(m[2]);
+  return total ? Math.min(100, Math.round((parseInt(m[1]) / total) * 100)) : 0;
+}
+
 function renderSummary(current, unlockedFeatures) {
+  const missionPct = current.totalMissionCount
+    ? Math.round((current.completedMissionCount / current.totalMissionCount) * 100)
+    : 0;
+
+  const chips = [
+    { icon: "📍", label: "Nó Atual",    value: current.title,                              wide: true  },
+    { icon: "🎯", label: "Missões",     value: `${current.completedMissionCount}/${current.totalMissionCount}`, pct: missionPct },
+    { icon: "▶",  label: "Execuções",   value: current.progress.runs                                    },
+    { icon: "🔓", label: "Features",    value: unlockedFeatures.length                                   },
+  ];
+
   return `
     <section class="progress-summary">
-      <article class="progress-chip">
-        <strong>No Atual</strong>
-        <span>${current.title}</span>
-      </article>
-      <article class="progress-chip">
-        <strong>Missoes</strong>
-        <span>${current.completedMissionCount}/${current.totalMissionCount}</span>
-      </article>
-      <article class="progress-chip">
-        <strong>Runs</strong>
-        <span>${current.progress.runs}</span>
-      </article>
-      <article class="progress-chip">
-        <strong>Features</strong>
-        <span>${unlockedFeatures.length}</span>
-      </article>
+      ${chips.map((chip) => `
+        <article class="progress-chip${chip.wide ? " progress-chip--wide" : ""}">
+          <span class="chip-icon" aria-hidden="true">${chip.icon}</span>
+          <strong class="chip-label">${chip.label}</strong>
+          <span class="chip-value">${chip.value}</span>
+          ${chip.pct !== undefined ? `
+            <div class="chip-bar-track" title="${chip.pct}%">
+              <div class="chip-bar-fill" style="width:${chip.pct}%"></div>
+            </div>
+          ` : ""}
+        </article>
+      `).join("")}
     </section>
   `;
 }
 
 function renderActiveMissions(activeMissions) {
   if (!activeMissions.length) {
-    return `<p class="muted">Sem missoes ativas no momento.</p>`;
+    return `<p class="muted qmc-empty">Sem missões ativas no momento.</p>`;
   }
 
   return `
-    <section class="mission-list">
+    <div class="quick-missions">
       ${activeMissions
-        .map(
-          (mission) => `
-        <article class="mission-card">
-          <h4>${formatMissionLabel(mission)}</h4>
-          <p class="muted">${mission.objective}</p>
-          <p>${mission.description || ""}</p>
-          <div class="badge-row">
-            <span class="${badgeClass(mission.isCompleted, mission.isUnlocked)}">${statusText(
-              mission.isCompleted,
-              mission.isUnlocked
-            )}</span>
-          </div>
-          <p class="muted">${mission.progressLabel}</p>
-          ${renderMissionHelp(mission, true)}
-        </article>
-      `
-        )
+        .map((mission) => {
+          const pct        = missionProgressPct(mission);
+          const stateClass = mission.isCompleted ? "is-completed" : "is-unlocked";
+          const stateIcon  = mission.isCompleted ? "✓" : "▶";
+          const hints      = mission.hints || [];
+          const lesson     = mission.lesson;
+
+          // Conteúdo expandido: dicas + lição
+          const expandedHtml = `
+            <div class="qmc-expanded">
+              ${hints.length ? `
+                <ul class="qmc-hints-list">
+                  ${hints.map((h) => `<li>💡 ${h}</li>`).join("")}
+                </ul>
+              ` : ""}
+              ${lesson ? `
+                <div class="qmc-lesson">
+                  <p class="qmc-lesson-topic">📖 ${lesson.topic}</p>
+                  <p class="qmc-lesson-summary">${lesson.summary}</p>
+                  ${lesson.syntax ? `<pre class="code-mini">${lesson.syntax}</pre>` : ""}
+                </div>
+              ` : ""}
+              ${!hints.length && !lesson ? `<p class="muted" style="font-size:.78rem">Sem dicas adicionais.</p>` : ""}
+            </div>
+          `;
+
+          return `
+            <details class="quick-mission-card ${stateClass}">
+              <summary class="qmc-summary">
+                <div class="qmc-header">
+                  <span class="qmc-state-icon" aria-hidden="true">${stateIcon}</span>
+                  <h4 class="qmc-title">${formatMissionLabel(mission)}</h4>
+                  <span class="qmc-progress-label">${mission.progressLabel || ""}</span>
+                  <span class="qmc-chevron" aria-hidden="true">›</span>
+                </div>
+                <p class="qmc-objective">${mission.objective}</p>
+                <div class="qmc-bar-track" title="${pct}% concluído">
+                  <div class="qmc-bar-fill" style="width:${pct}%"></div>
+                </div>
+              </summary>
+              ${expandedHtml}
+            </details>
+          `;
+        })
         .join("")}
-    </section>
+    </div>
   `;
 }
 
@@ -442,22 +484,30 @@ function buildDevTracks(devTree, worldUpgrades) {
 }
 
 function renderDevTrackCard(track, selectedTrackId) {
-  const selectedClass = selectedTrackId === track.id ? "is-selected" : "";
+  const isSelected = selectedTrackId === track.id;
   const stateClass = track.isCompleted ? "is-completed" : track.isUnlocked ? "is-unlocked" : "is-locked";
-  const status = track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado";
-  const nextTitle = track.nextItem ? track.nextItem.title : "Todos os niveis concluidos";
+  const selectedClass = isSelected ? "is-selected" : "";
+  const progressPct = track.total > 0 ? Math.round((track.purchasedCount / track.total) * 100) : 0;
+  const badgeState = track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked";
+  const statusLabel = track.isCompleted ? "Concluído" : track.isUnlocked ? (track.canAfford ? "Disponível" : "Sem recursos") : "Bloqueado";
+  const nextTitle = track.nextItem ? track.nextItem.title : "Todos os níveis concluídos";
   return `
     <article
       class="dev-card ${stateClass} ${selectedClass}"
       data-dev-track-id="${track.id}"
+      tabindex="0"
+      role="button"
+      aria-pressed="${isSelected}"
     >
-      <p class="muted">Progresso ${track.progressLabel}</p>
-      <h5>${track.title}</h5>
-      <p class="muted">${track.description}</p>
-      <p class="muted">Proximo: ${nextTitle}</p>
-      <div class="badge-row">
-        <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">${status}</span>
+      <div class="dev-card-header">
+        <h5 class="dev-card-title">${track.title}</h5>
+        <span class="badge ${badgeState}" title="${statusLabel}"></span>
       </div>
+      <div class="dev-card-progress-track">
+        <div class="dev-card-progress-fill" style="width:${progressPct}%"></div>
+      </div>
+      <p class="dev-card-meta">${track.progressLabel} · ${statusLabel}</p>
+      <p class="dev-card-next">Próx.: ${nextTitle}</p>
     </article>
   `;
 }
@@ -496,12 +546,26 @@ function groupGameTracks(tracks) {
 }
 
 function renderDevBranch(title, branchId, tracks, selectedTrackId) {
+  const total = (tracks || []).length;
+  const completed = (tracks || []).filter((t) => t.isCompleted).length;
+  const available = (tracks || []).filter((t) => t.isUnlocked && !t.isCompleted).length;
+
+  const branchHeaderHtml = `
+    <div class="dev-branch-header">
+      <h4 class="dev-branch-title">${title}</h4>
+      <div class="dev-branch-meta">
+        <span class="dev-branch-stat"><span class="dev-branch-count is-done">${completed}</span> concluídas</span>
+        <span class="dev-branch-stat"><span class="dev-branch-count is-ready">${available}</span> disponíveis</span>
+        <span class="dev-branch-stat muted">${total} trilhas</span>
+      </div>
+    </div>
+  `;
+
   if (branchId === "game") {
     const groups = groupGameTracks(tracks);
     return `
       <section class="dev-branch">
-        <h4>${title}</h4>
-        <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
+        ${branchHeaderHtml}
         <div class="dev-track-groups" data-dev-branch="${branchId}">
           ${groups
             .map(
@@ -522,8 +586,7 @@ function renderDevBranch(title, branchId, tracks, selectedTrackId) {
 
   return `
     <section class="dev-branch">
-      <h4>${title}</h4>
-      <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
+      ${branchHeaderHtml}
       <div class="dev-branch-grid" data-dev-branch="${branchId}">
         ${(tracks || []).map((track) => renderDevTrackCard(track, selectedTrackId)).join("")}
       </div>
@@ -531,31 +594,40 @@ function renderDevBranch(title, branchId, tracks, selectedTrackId) {
   `;
 }
 
+function renderDevCostList(item) {
+  const costs = item.costs || {};
+  const missing = item.missingCosts || {};
+  const entries = Object.entries(costs).filter(([, qty]) => qty > 0);
+  if (!entries.length) return `<span class="dev-cost-empty">Sem custo</span>`;
+  return `<div class="dev-cost-list">
+    ${entries
+      .map(([id, required]) => {
+        const missingQty = missing[id] || 0;
+        const isOk = missingQty === 0;
+        return `<span class="dev-cost-item ${isOk ? "is-ok" : "is-missing"}">
+          <span class="dev-cost-icon">${isOk ? "✓" : "✗"}</span>
+          <span class="dev-cost-label">${itemLabel(id)}</span>
+          <span class="dev-cost-qty">${required}${!isOk ? ` <small>(-${missingQty})</small>` : ""}</span>
+        </span>`;
+      })
+      .join("")}
+  </div>`;
+}
+
 function renderDevTrackDetail(track, options = {}) {
   if (!track) {
     return `
-      <section class="mission-card dev-upgrade-detail" data-selected-dev-upgrade-id="">
-        <h4>Detalhes de Upgrade</h4>
-        <p class="muted">Clique em um card para abrir os detalhes da trilha progressiva.</p>
+      <section class="dev-upgrade-detail dev-upgrade-detail--empty" data-selected-dev-upgrade-id="">
+        <div class="dev-detail-empty">
+          <span class="dev-detail-empty-icon">↖</span>
+          <p>Selecione uma trilha para ver os detalhes e opções de compra.</p>
+        </div>
       </section>
     `;
   }
 
   const item = track.nextItem;
-  const requirements = item
-    ? formatDevRequirements(item, {
-        devById: options.devById,
-        worldById: options.worldById,
-      })
-    : "Sem requisito adicional";
-  const missing =
-    item && Object.entries(item.missingCosts || {}).length
-      ? Object.entries(item.missingCosts || {})
-          .map(([id, qty]) => `${itemLabel(id)}: ${qty}`)
-          .join(" | ")
-      : "Nada pendente";
   const canBuy = Boolean(item && !track.isCompleted && track.isUnlocked && track.canAfford);
-  const unlocks = item ? (item.unlocks || []).map(featureLabel).join(" | ") || "Sem feature direta" : "Sem feature direta";
   const buyKind = track.kind === "world-track" ? "world" : "dev";
   const buyTargetId = item ? item.id : "";
   const lockFeedback = buildLockFeedback(item, {
@@ -564,53 +636,98 @@ function renderDevTrackDetail(track, options = {}) {
   });
 
   if (item && !track.isCompleted && !track.isUnlocked && !lockFeedback.blockedReasons.length) {
-    lockFeedback.blockedReasons.push("Este upgrade ainda nao esta disponivel.");
+    lockFeedback.blockedReasons.push("Este upgrade ainda não está disponível.");
   }
-
   if (item && !track.isCompleted && track.isUnlocked && !track.canAfford) {
     lockFeedback.unlockSteps.push("Colete os itens faltantes e tente novamente.");
   }
 
-  const blockedDetails = lockFeedback.blockedReasons.length
+  const badgeState = track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked";
+  const badgeLabel = track.isCompleted ? "Concluído" : track.isUnlocked ? "Disponível" : "Bloqueado";
+  const requirements = item
+    ? formatDevRequirements(item, { devById: options.devById, worldById: options.worldById })
+    : null;
+  const unlocksList = item ? (item.unlocks || []).map(featureLabel) : [];
+
+  const blockedHtml = lockFeedback.blockedReasons.length
     ? lockFeedback.blockedReasons.map((line) => `<li>${line}</li>`).join("")
-    : "<li>Nenhum bloqueio identificado.</li>";
-  const unlockStepsDetails = lockFeedback.unlockSteps.length
+    : null;
+  const stepsHtml = lockFeedback.unlockSteps.length
     ? lockFeedback.unlockSteps.map((line) => `<li>${line}</li>`).join("")
-    : "<li>Sem acao adicional no momento.</li>";
+    : null;
 
   return `
-    <section class="mission-card dev-upgrade-detail" data-selected-dev-upgrade-id="${track.id}">
-      <h4>${track.title} ${track.progressLabel}</h4>
-      <p class="muted">Ramo: ${track.branchId === "game" ? "Jogo" : "Codigo"}</p>
-      <p>${track.description}</p>
-      <p class="muted">Proximo upgrade: ${item ? item.title : "Concluido"}</p>
-      <p>${item ? item.description : "Todos os niveis desta trilha ja foram comprados."}</p>
-      ${item && !track.isCompleted && !track.isUnlocked ? `<p><strong>Para liberar este upgrade:</strong> siga os passos abaixo.</p>` : ""}
-      <p class="muted">Requisitos: ${requirements}</p>
-      <p class="muted">Consumo: ${formatCostList(item ? item.costs : {})}</p>
-      <p class="muted">Faltando: ${missing}</p>
-      <p class="muted">Desbloqueia: ${unlocks}</p>
-      <details class="lesson-box compact" open>
-        <summary>Por que esta bloqueado?</summary>
-        <ul class="hint-list">${blockedDetails}</ul>
-      </details>
-      <details class="lesson-box compact" open>
-        <summary>O que fazer para desbloquear</summary>
-        <ul class="hint-list">${unlockStepsDetails}</ul>
-      </details>
-      <div class="badge-row">
-        <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">
-          ${track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado"}
-        </span>
+    <section class="dev-upgrade-detail" data-selected-dev-upgrade-id="${track.id}">
+      <div class="dev-detail-head">
+        <div class="dev-detail-head-info">
+          <h4 class="dev-detail-title">${track.title}</h4>
+          <p class="dev-detail-subtitle">${track.branchId === "game" ? "Ramo: Jogo" : "Ramo: Código"} · ${track.progressLabel}</p>
+        </div>
+        <span class="badge ${badgeState}">${badgeLabel}</span>
       </div>
+
+      <p class="dev-detail-desc">${item ? item.description : "Todos os níveis desta trilha já foram comprados."}</p>
+
+      ${
+        item && !track.isCompleted
+          ? `
+        <div class="dev-detail-section">
+          <p class="dev-detail-label">Próximo nível</p>
+          <p class="dev-detail-value">${item.title}</p>
+        </div>
+
+        <div class="dev-detail-section">
+          <p class="dev-detail-label">Custo</p>
+          ${renderDevCostList(item)}
+        </div>
+
+        ${
+          requirements && requirements !== "Sem requisito adicional"
+            ? `<div class="dev-detail-section">
+          <p class="dev-detail-label">Requisitos</p>
+          <p class="dev-detail-value muted">${requirements}</p>
+        </div>`
+            : ""
+        }
+
+        ${
+          unlocksList.length
+            ? `<div class="dev-detail-section">
+          <p class="dev-detail-label">Desbloqueia</p>
+          <p class="dev-detail-value">${unlocksList.join(", ")}</p>
+        </div>`
+            : ""
+        }
+
+        ${
+          blockedHtml
+            ? `<details class="dev-detail-block dev-detail-block--warn" open>
+          <summary>Por que está bloqueado?</summary>
+          <ul class="hint-list">${blockedHtml}</ul>
+        </details>`
+            : ""
+        }
+
+        ${
+          stepsHtml
+            ? `<details class="dev-detail-block dev-detail-block--info" open>
+          <summary>Como desbloquear</summary>
+          <ul class="hint-list">${stepsHtml}</ul>
+        </details>`
+            : ""
+        }
+      `
+          : ""
+      }
+
       <button
-        class="btn btn-primary"
+        class="btn btn-primary dev-detail-buy-btn"
         data-dev-action="buy"
         data-dev-buy-kind="${buyKind}"
         data-dev-upgrade-id="${buyTargetId}"
         ${canBuy ? "" : "disabled"}
       >
-        ${track.isCompleted ? "Ja concluido" : "Comprar proximo nivel"}
+        ${track.isCompleted ? "✓ Trilha concluída" : canBuy ? "▶ Comprar próximo nível" : "Comprar próximo nível"}
       </button>
     </section>
   `;
@@ -632,12 +749,10 @@ function renderDevTreePage(devTree, worldUpgrades, selectedTrackId) {
 
   return `
     <section class="dev-tree-layout">
-      <section class="mission-card">
-        <h3>Arvore Completa de Desenvolvimento</h3>
-        <p class="muted">Nova arvore separada da arvore de missoes, com trilhas progressivas no mesmo card.</p>
+      <div class="dev-tree-branches">
         ${renderDevBranch("Ramo Jogo", "game", tracksByBranch.game, selectedTrackId)}
         ${renderDevBranch("Ramo Codigo", "code", tracksByBranch.code, selectedTrackId)}
-      </section>
+      </div>
       ${detailHtml}
     </section>
   `;
@@ -646,47 +761,109 @@ function renderDevTreePage(devTree, worldUpgrades, selectedTrackId) {
 function renderNodeFocusDetails(node, treeNodes) {
   if (!node) {
     return `
-      <section class="mission-card" data-selected-node-id="">
-        <h4>Detalhes do No</h4>
-        <p class="muted">Clique em um no da arvore para ver mais informacoes.</p>
+      <section class="node-detail-panel node-detail-panel--empty" data-selected-node-id="">
+        <div class="node-detail-empty">
+          <span class="node-detail-empty-icon">↖</span>
+          <p>Clique em um nó da árvore para ver detalhes e missões.</p>
+        </div>
       </section>
     `;
   }
 
-  const byId = new Map((treeNodes || []).map((n) => [n.id, n]));
-  const requiresLabel = (node.requires || []).length
-    ? node.requires.map((reqId) => byId.get(reqId)?.title || reqId).join(" | ")
-    : "Inicio da trilha";
+  const byId  = new Map((treeNodes || []).map((n) => [n.id, n]));
+  const stateClass = node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked";
+  const branchLabel = { fundamentos: "Fundamentos", agricola: "Gameplay — Agricola",
+    otimizacao: "Gameplay — Otimização", logica: "Programação — Lógica",
+    abstracao: "Programação — Abstração", maestria: "Maestria" }[node.branch] || node.branch;
+  const requiresNodes = (node.requires || []).map((id) => byId.get(id)).filter(Boolean);
+  const done  = (node.missions || []).filter((m) => m.isCompleted).length;
+  const total = (node.missions || []).length;
 
   return `
-    <section class="mission-card" data-selected-node-id="${node.id}">
-      <h4>${formatNodeLabel(node)}</h4>
-      <p class="muted">Trilha: ${node.branch || "geral"}</p>
-      <p class="muted">Depende de: ${requiresLabel}</p>
-      <div class="badge-row">
-        <span class="${badgeClass(node.isCompleted, node.isUnlocked)}">${statusText(node.isCompleted, node.isUnlocked)}</span>
+    <section class="node-detail-panel ${stateClass}" data-selected-node-id="${node.id}">
+      <div class="node-detail-head">
+        <span class="node-detail-icon" aria-hidden="true">${nodeIcon(node.id)}</span>
+        <div class="node-detail-head-info">
+          <h4 class="node-detail-title">${node.title}</h4>
+          <p class="node-detail-subtitle">${branchLabel} · [${done}/${total}]</p>
+        </div>
+        <span class="badge ${node.isCompleted ? "completed" : node.isUnlocked ? "unlocked" : "locked"}" title="${statusText(node.isCompleted, node.isUnlocked)}"></span>
       </div>
 
-      <details class="lesson-box compact" open>
-        <summary>Recursos liberados neste no</summary>
-        <ul class="hint-list">
-          ${(node.unlocks || []).map((feature) => `<li>${featureLabel(feature)}</li>`).join("") || "<li>Nenhum recurso.</li>"}
-        </ul>
-      </details>
+      ${requiresNodes.length ? `
+        <p class="node-detail-label">Requer</p>
+        <div class="node-detail-requires">
+          ${requiresNodes.map((req) => `
+            <span class="node-req-chip ${req.isCompleted ? "is-done" : ""}">
+              ${nodeIcon(req.id)} ${req.title}
+            </span>
+          `).join("")}
+        </div>
+      ` : ""}
 
-      <details class="lesson-box compact" open>
-        <summary>Missoes do no</summary>
-        <ul class="hint-list">
-          ${(node.missions || [])
-            .map(
-              (mission) =>
-                `<li>${formatMissionLabel(mission)} - ${mission.isCompleted ? "concluida" : mission.isUnlocked ? "ativa" : "bloqueada"}</li>`
-            )
-            .join("") || "<li>Sem missoes.</li>"}
-        </ul>
-      </details>
+      <p class="node-detail-label">Desbloqueia</p>
+      <div class="node-detail-unlocks">
+        ${(node.unlocks || []).map((f) => `<span class="node-unlock-chip">${featureLabel(f)}</span>`).join("") || "<span class='muted'>—</span>"}
+      </div>
+
+      <p class="node-detail-label">Missões</p>
+      <div class="node-detail-missions">
+        ${(node.missions || []).map((m) => {
+          const ms = m.isCompleted ? "is-completed" : m.isUnlocked ? "is-unlocked" : "is-locked";
+          const icon = m.isCompleted ? "✓" : m.isUnlocked ? "▶" : "🔒";
+          return `
+            <div class="node-mission-row ${ms}">
+              <span class="node-mission-icon">${icon}</span>
+              <div class="node-mission-info">
+                <p class="node-mission-title">${formatMissionLabel(m)}</p>
+                <p class="node-mission-obj muted">${m.objective || ""}</p>
+              </div>
+              <span class="node-mission-progress">${m.progressLabel || ""}</span>
+            </div>
+          `;
+        }).join("")}
+      </div>
     </section>
   `;
+}
+
+// ── Mapeamento de ícone por nó da árvore de missões ──
+function nodeIcon(nodeId) {
+  const icons = {
+    n01_movimento:       "🚜",
+    n02_plantio:         "🌱",
+    n03_colheita:        "🌾",
+    n04_condicional_if:  "🔀",
+    n05_loop_while:      "🔁",
+    n06_loop_for:        "🔄",
+    n07_funcoes:         "𝑓()",
+    n08_funcoes_param:   "𝑓(x)",
+    n09_arrays:          "[ ]",
+    n10_estrategia:      "🗺️",
+    n11_eficiencia:      "⚡",
+    n12_maestria:        "🏆",
+  };
+  return icons[nodeId] || "📦";
+}
+
+// ── Classifica cada nó em ramo: gameplay | code | root | maestria ──
+function nodeBranchType(node) {
+  const gameplay = ["agricola", "otimizacao"];
+  const code     = ["logica", "abstracao"];
+  if (gameplay.includes(node.branch)) return "gameplay";
+  if (code.includes(node.branch))     return "code";
+  if (node.branch === "maestria")     return "maestria";
+  return "root";
+}
+
+// ── Caminho ortogonal (90°) entre dois nós: bottom-from → top-to ──
+function orthoPath(from, to) {
+  const x1   = from._layout.centerX;
+  const y1   = from._layout.y + from._layout.height;
+  const x2   = to._layout.centerX;
+  const y2   = to._layout.y;
+  const midY = (y1 + y2) / 2;
+  return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
 }
 
 function toSafeNumber(value, fallback) {
@@ -694,12 +871,12 @@ function toSafeNumber(value, fallback) {
 }
 
 function buildTreeLayout(treeNodes) {
-  const colStep = 210;
-  const rowStep = 140;
-  const cardWidth = 170;
-  const cardHeight = 84;
-  const leftPad = 42;
-  const topPad = 36;
+  const colStep   = 200;
+  const rowStep   = 172;
+  const cardWidth  = 148;
+  const cardHeight = 112;
+  const leftPad   = 48;
+  const topPad    = 48;
 
   const maxCol = treeNodes.reduce((max, node) => Math.max(max, toSafeNumber(node.tree && node.tree.col, 0)), 0);
   const maxRow = treeNodes.reduce((max, node) => Math.max(max, toSafeNumber(node.tree && node.tree.row, 0)), 0);
@@ -750,42 +927,85 @@ function buildTreeLayout(treeNodes) {
 function renderTreeCanvas(treeNodes) {
   const layout = buildTreeLayout(treeNodes);
 
+  // ── Bounding box de um grupo de nós (para regiões de ramo) ──
+  function groupBounds(nodes, padH = 24, padV = 36) {
+    if (!nodes.length) return null;
+    const minX = Math.min(...nodes.map((n) => n._layout.x)) - padH;
+    const minY = Math.min(...nodes.map((n) => n._layout.y)) - padV;
+    const maxX = Math.max(...nodes.map((n) => n._layout.x + n._layout.width)) + padH;
+    const maxY = Math.max(...nodes.map((n) => n._layout.y + n._layout.height)) + padV;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, cx: (minX + maxX) / 2 };
+  }
+
+  const gameplayNodes = layout.nodes.filter((n) => nodeBranchType(n) === "gameplay");
+  const codeNodes     = layout.nodes.filter((n) => nodeBranchType(n) === "code");
+  const gpBox  = groupBounds(gameplayNodes);
+  const codeBox = groupBounds(codeNodes);
+
   return `
     <section class="tree-canvas-wrap tree-canvas-wrap-full">
       <div class="tree-viewport" data-tree-interactive="true" tabindex="0" aria-label="Arvore de missoes interativa">
         <div class="tree-canvas" style="width:${layout.width}px; height:${layout.height}px;">
+
           <svg class="tree-lines" viewBox="0 0 ${layout.width} ${layout.height}" preserveAspectRatio="none">
+            <defs>
+              <filter id="tree-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+
+            <!-- Regiões de ramo -->
+            ${gpBox ? `
+              <rect class="branch-region branch-region--gameplay"
+                x="${gpBox.x}" y="${gpBox.y}" width="${gpBox.w}" height="${gpBox.h}" rx="14"/>
+              <text class="branch-label branch-label--gameplay"
+                x="${gpBox.cx}" y="${gpBox.y + 22}" text-anchor="middle">🌾 Gameplay</text>
+            ` : ""}
+            ${codeBox ? `
+              <rect class="branch-region branch-region--code"
+                x="${codeBox.x}" y="${codeBox.y}" width="${codeBox.w}" height="${codeBox.h}" rx="14"/>
+              <text class="branch-label branch-label--code"
+                x="${codeBox.cx}" y="${codeBox.y + 22}" text-anchor="middle">💻 Programação</text>
+            ` : ""}
+
+            <!-- Conexões ortogonais -->
             ${layout.edges
-              .map(
-                (edge) => `
-              <path
-                d="M ${edge.from._layout.centerX} ${edge.from._layout.centerY} C ${edge.from._layout.centerX} ${(edge.from._layout.centerY + edge.to._layout.centerY) / 2}, ${edge.to._layout.centerX} ${(edge.from._layout.centerY + edge.to._layout.centerY) / 2}, ${edge.to._layout.centerX} ${edge.to._layout.centerY}"
-                class="tree-link ${edge.to.isUnlocked ? "unlocked" : "locked"}"
-              />
-            `
-              )
+              .map((edge) => {
+                const stateClass = edge.to.isCompleted ? "is-completed" : edge.to.isUnlocked ? "is-unlocked" : "is-locked";
+                return `<path d="${orthoPath(edge.from, edge.to)}" class="tree-link ${stateClass}"/>`;
+              })
               .join("")}
           </svg>
 
+          <!-- Nós -->
           ${layout.nodes
-            .map(
-              (node) => `
-            <article
-              class="node-card tree-node ${node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked"}"
-              data-node-id="${node.id}"
-              style="left:${node._layout.x}px; top:${node._layout.y}px; width:${node._layout.width}px; min-height:${node._layout.height}px;"
-            >
-              <h4>${node.title}</h4>
-              <p class="muted node-meta">${formatNodeLabel(node)}</p>
-              <div class="badge-row">
-                <span class="${badgeClass(node.isCompleted, node.isUnlocked)}">${statusText(node.isCompleted, node.isUnlocked)}</span>
-                <span class="badge unlocked">${node.completedMissions || node.missions.filter((m) => m.isCompleted).length}/${
-                  node.totalMissions || node.missions.length
-                }</span>
-              </div>
-            </article>
-          `
-            )
+            .map((node) => {
+              const stateClass  = node.isCompleted ? "is-completed" : node.isUnlocked ? "is-unlocked" : "is-locked";
+              const branchClass = `branch--${nodeBranchType(node)}`;
+              const done  = node.missions.filter((m) => m.isCompleted).length;
+              const total = node.missions.length;
+              const icon  = nodeIcon(node.id);
+              const stateIcon = node.isCompleted ? "✓" : node.isUnlocked ? "▶" : "🔒";
+              return `
+                <article
+                  class="tree-node ${stateClass} ${branchClass}"
+                  data-node-id="${node.id}"
+                  style="left:${node._layout.x}px; top:${node._layout.y}px; width:${node._layout.width}px;"
+                  tabindex="0"
+                  role="button"
+                  aria-label="${node.title} — ${stateClass}"
+                >
+                  <div class="tree-node-state-bar"></div>
+                  <div class="tree-node-icon" aria-hidden="true">${icon}</div>
+                  <p class="tree-node-title">${node.title}</p>
+                  <div class="tree-node-footer">
+                    <span class="tree-node-progress">[${done}/${total}]</span>
+                    <span class="tree-node-status-icon">${stateIcon}</span>
+                  </div>
+                </article>
+              `;
+            })
             .join("")}
         </div>
       </div>
@@ -829,20 +1049,31 @@ function renderFullPage(current, tree, activeMissions, unlockedFeatures) {
 
   return `
     <section class="progress-full-layout">
+
+      <!-- CANVAS DA ÁRVORE (coluna principal) -->
       <div class="progress-full-main">
-        <h3>Arvore Completa</h3>
+        <div class="progress-full-main-header">
+          <span class="progress-tree-legend">
+            <span class="legend-dot legend-dot--completed"></span>Concluído
+          </span>
+          <span class="progress-tree-legend">
+            <span class="legend-dot legend-dot--unlocked"></span>Disponível
+          </span>
+          <span class="progress-tree-legend">
+            <span class="legend-dot legend-dot--locked"></span>Bloqueado
+          </span>
+          <span class="progress-tree-hint muted">Arraste para navegar · Scroll para zoom · Duplo-clique para encaixar</span>
+        </div>
         ${renderTreeCanvas(tree)}
       </div>
 
+      <!-- PAINEL LATERAL -->
       <aside class="progress-full-side">
         ${renderSummary(current, unlockedFeatures)}
         <section id="treeNodeDetailsPanelHost">${renderNodeFocusDetails(currentNode, tree)}</section>
         ${renderCurrentLearning(current, tree)}
-        <h3>Missoes Ativas</h3>
-        ${renderActiveMissions(activeMissions)}
-        ${renderUnlockedOverview(tree, unlockedFeatures)}
-        ${renderMissionDetails(tree)}
       </aside>
+
     </section>
   `;
 }
@@ -1212,14 +1443,30 @@ export function createProgressionUI({ gamePhases, onLog }) {
     const summaryHtml = renderSummary(current, unlockedFeatures);
     const activeHtml = renderActiveMissions(activeMissions);
 
+    const learningHtml = renderCurrentLearning(current, tree);
+    const featuresHtml = unlockedFeatures.length
+      ? unlockedFeatures.map((f) => `<span class="quick-feature-chip">${featureLabel(f)}</span>`).join("")
+      : `<p class="muted">Nenhuma feature extra desbloqueada ainda.</p>`;
+
     modalContent.innerHTML = `
       ${summaryHtml}
-      ${renderCurrentLearning(current, tree)}
-      <h3>Missoes Ativas</h3>
-      ${activeHtml}
-      ${renderUnlockedOverview(tree, unlockedFeatures)}
-      <hr class="divider" />
-      <p class="muted">Features desbloqueadas: ${unlockedFeatures.join(", ") || "nenhuma"}</p>
+
+      <section class="quick-section">
+        <h3 class="quick-section-title">🎯 Missões Ativas</h3>
+        ${activeHtml}
+      </section>
+
+      ${learningHtml ? `
+        <section class="quick-section">
+          <h3 class="quick-section-title">📖 Aprendendo Agora</h3>
+          ${learningHtml}
+        </section>
+      ` : ""}
+
+      <section class="quick-section">
+        <h3 class="quick-section-title">🔓 Features Desbloqueadas</h3>
+        <div class="quick-features">${featuresHtml}</div>
+      </section>
     `;
 
     pageContent.innerHTML = `
