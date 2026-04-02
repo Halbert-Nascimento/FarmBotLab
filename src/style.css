@@ -1274,8 +1274,8 @@ body {
 
 .dev-tree-layout {
   display: grid;
-  grid-template-columns: minmax(720px, 1fr) minmax(320px, 420px);
-  gap: 14px;
+  grid-template-columns: 1fr minmax(300px, 380px);
+  gap: 16px;
   min-height: 0;
   align-items: start;
 }
@@ -1284,16 +1284,63 @@ body {
   min-width: 0;
 }
 
-.dev-branch {
-  margin-top: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-bg-surface);
-  padding: 10px;
+.dev-tree-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
 }
 
-.dev-branch h4 {
-  margin: 0 0 8px;
+/* Branch section */
+.dev-branch {
+  margin-top: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  padding: 14px;
+}
+
+.dev-branch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.dev-branch-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dev-branch-meta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dev-branch-stat {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dev-branch-count {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.dev-branch-count.is-done {
+  color: var(--color-accent);
+}
+
+.dev-branch-count.is-ready {
+  color: var(--color-accent);
 }
 
 .dev-branch-grid {
@@ -1311,33 +1358,93 @@ body {
   border: 1px dashed var(--color-border);
   border-radius: 10px;
   background: var(--color-bg-surface);
-  padding: 8px;
+  padding: 10px;
 }
 
 .dev-track-group h5 {
-  margin: 0 0 8px;
-  font-size: 0.85rem;
-  letter-spacing: 0.03em;
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  opacity: 0.8;
+  color: var(--color-text-secondary);
 }
 
+/* Track card */
 .dev-card {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-bg-surface-raised);
-  padding: 8px;
+  padding: 10px 10px 8px;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .dev-card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 
-.dev-card h5 {
-  margin: 4px 0;
-  font-size: 0.9rem;
+.dev-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.dev-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dev-card-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Progress bar */
+.dev-card-progress-track {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.dev-card-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--color-accent);
+  transition: width 300ms ease;
+}
+
+.dev-card.is-completed .dev-card-progress-fill {
+  background: var(--color-green);
+}
+
+.dev-card-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.dev-card-next {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .dev-card p,
@@ -1349,28 +1456,204 @@ body {
   word-break: break-word;
 }
 
+/* Card states */
 .dev-card.is-selected {
-  border-color: var(--color-accent-hover);
-  box-shadow: 0 0 0 2px var(--color-shadow);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-green-bg);
 }
 
 .dev-card.is-unlocked {
-  border-color: var(--color-green);
+  border-color: var(--color-accent);
 }
 
 .dev-card.is-completed {
   border-color: var(--color-accent);
   background: var(--color-bg-elevated);
+  opacity: 0.8;
 }
 
+.dev-card.is-locked {
+  opacity: 0.6;
+}
+
+/* ============================================================
+   DEV UPGRADE DETAIL PANEL
+   ============================================================ */
+
 .dev-upgrade-detail {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   align-content: start;
-  max-height: none;
-  overflow: visible;
   position: sticky;
   top: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-surface-raised);
+  padding: 16px;
+}
+
+.dev-upgrade-detail--empty {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+}
+
+.dev-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 16px;
+}
+
+.dev-detail-empty-icon {
+  font-size: 1.8rem;
+  opacity: 0.4;
+}
+
+.dev-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dev-detail-head-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dev-detail-title {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.dev-detail-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.dev-detail-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.dev-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dev-detail-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+}
+
+.dev-detail-value {
+  margin: 0;
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+
+/* Cost list with validation */
+.dev-cost-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dev-cost-empty {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.dev-cost-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.dev-cost-item.is-ok {
+  background: var(--color-green-bg);
+  border-color: var(--color-green);
+  color: var(--color-green);
+}
+
+.dev-cost-item.is-missing {
+  background: var(--color-red-bg);
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+
+.dev-cost-icon {
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.dev-cost-label {
+  font-weight: 600;
+}
+
+.dev-cost-qty small {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+/* Blocked / steps details */
+.dev-detail-block {
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.dev-detail-block summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+
+.dev-detail-block--warn {
+  background: var(--color-red-bg);
+  border: 1px solid var(--color-red);
+  color: var(--color-red);
+}
+
+.dev-detail-block--info {
+  background: var(--color-green-bg);
+  border: 1px solid var(--color-border-strong);
+}
+
+.dev-detail-block .hint-list {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+
+.dev-detail-buy-btn {
+  width: 100%;
+  margin-top: 4px;
 }
 
 /* ============================================================

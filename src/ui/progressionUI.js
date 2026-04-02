@@ -442,22 +442,30 @@ function buildDevTracks(devTree, worldUpgrades) {
 }
 
 function renderDevTrackCard(track, selectedTrackId) {
-  const selectedClass = selectedTrackId === track.id ? "is-selected" : "";
+  const isSelected = selectedTrackId === track.id;
   const stateClass = track.isCompleted ? "is-completed" : track.isUnlocked ? "is-unlocked" : "is-locked";
-  const status = track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado";
-  const nextTitle = track.nextItem ? track.nextItem.title : "Todos os niveis concluidos";
+  const selectedClass = isSelected ? "is-selected" : "";
+  const progressPct = track.total > 0 ? Math.round((track.purchasedCount / track.total) * 100) : 0;
+  const badgeState = track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked";
+  const statusLabel = track.isCompleted ? "Concluído" : track.isUnlocked ? (track.canAfford ? "Disponível" : "Sem recursos") : "Bloqueado";
+  const nextTitle = track.nextItem ? track.nextItem.title : "Todos os níveis concluídos";
   return `
     <article
       class="dev-card ${stateClass} ${selectedClass}"
       data-dev-track-id="${track.id}"
+      tabindex="0"
+      role="button"
+      aria-pressed="${isSelected}"
     >
-      <p class="muted">Progresso ${track.progressLabel}</p>
-      <h5>${track.title}</h5>
-      <p class="muted">${track.description}</p>
-      <p class="muted">Proximo: ${nextTitle}</p>
-      <div class="badge-row">
-        <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">${status}</span>
+      <div class="dev-card-header">
+        <h5 class="dev-card-title">${track.title}</h5>
+        <span class="badge ${badgeState}" title="${statusLabel}"></span>
       </div>
+      <div class="dev-card-progress-track">
+        <div class="dev-card-progress-fill" style="width:${progressPct}%"></div>
+      </div>
+      <p class="dev-card-meta">${track.progressLabel} · ${statusLabel}</p>
+      <p class="dev-card-next">Próx.: ${nextTitle}</p>
     </article>
   `;
 }
@@ -496,12 +504,26 @@ function groupGameTracks(tracks) {
 }
 
 function renderDevBranch(title, branchId, tracks, selectedTrackId) {
+  const total = (tracks || []).length;
+  const completed = (tracks || []).filter((t) => t.isCompleted).length;
+  const available = (tracks || []).filter((t) => t.isUnlocked && !t.isCompleted).length;
+
+  const branchHeaderHtml = `
+    <div class="dev-branch-header">
+      <h4 class="dev-branch-title">${title}</h4>
+      <div class="dev-branch-meta">
+        <span class="dev-branch-stat"><span class="dev-branch-count is-done">${completed}</span> concluídas</span>
+        <span class="dev-branch-stat"><span class="dev-branch-count is-ready">${available}</span> disponíveis</span>
+        <span class="dev-branch-stat muted">${total} trilhas</span>
+      </div>
+    </div>
+  `;
+
   if (branchId === "game") {
     const groups = groupGameTracks(tracks);
     return `
       <section class="dev-branch">
-        <h4>${title}</h4>
-        <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
+        ${branchHeaderHtml}
         <div class="dev-track-groups" data-dev-branch="${branchId}">
           ${groups
             .map(
@@ -522,8 +544,7 @@ function renderDevBranch(title, branchId, tracks, selectedTrackId) {
 
   return `
     <section class="dev-branch">
-      <h4>${title}</h4>
-      <p class="muted">Cards progressivos: cada compra atualiza para o proximo nivel no mesmo card.</p>
+      ${branchHeaderHtml}
       <div class="dev-branch-grid" data-dev-branch="${branchId}">
         ${(tracks || []).map((track) => renderDevTrackCard(track, selectedTrackId)).join("")}
       </div>
@@ -531,31 +552,40 @@ function renderDevBranch(title, branchId, tracks, selectedTrackId) {
   `;
 }
 
+function renderDevCostList(item) {
+  const costs = item.costs || {};
+  const missing = item.missingCosts || {};
+  const entries = Object.entries(costs).filter(([, qty]) => qty > 0);
+  if (!entries.length) return `<span class="dev-cost-empty">Sem custo</span>`;
+  return `<div class="dev-cost-list">
+    ${entries
+      .map(([id, required]) => {
+        const missingQty = missing[id] || 0;
+        const isOk = missingQty === 0;
+        return `<span class="dev-cost-item ${isOk ? "is-ok" : "is-missing"}">
+          <span class="dev-cost-icon">${isOk ? "✓" : "✗"}</span>
+          <span class="dev-cost-label">${itemLabel(id)}</span>
+          <span class="dev-cost-qty">${required}${!isOk ? ` <small>(-${missingQty})</small>` : ""}</span>
+        </span>`;
+      })
+      .join("")}
+  </div>`;
+}
+
 function renderDevTrackDetail(track, options = {}) {
   if (!track) {
     return `
-      <section class="mission-card dev-upgrade-detail" data-selected-dev-upgrade-id="">
-        <h4>Detalhes de Upgrade</h4>
-        <p class="muted">Clique em um card para abrir os detalhes da trilha progressiva.</p>
+      <section class="dev-upgrade-detail dev-upgrade-detail--empty" data-selected-dev-upgrade-id="">
+        <div class="dev-detail-empty">
+          <span class="dev-detail-empty-icon">↖</span>
+          <p>Selecione uma trilha para ver os detalhes e opções de compra.</p>
+        </div>
       </section>
     `;
   }
 
   const item = track.nextItem;
-  const requirements = item
-    ? formatDevRequirements(item, {
-        devById: options.devById,
-        worldById: options.worldById,
-      })
-    : "Sem requisito adicional";
-  const missing =
-    item && Object.entries(item.missingCosts || {}).length
-      ? Object.entries(item.missingCosts || {})
-          .map(([id, qty]) => `${itemLabel(id)}: ${qty}`)
-          .join(" | ")
-      : "Nada pendente";
   const canBuy = Boolean(item && !track.isCompleted && track.isUnlocked && track.canAfford);
-  const unlocks = item ? (item.unlocks || []).map(featureLabel).join(" | ") || "Sem feature direta" : "Sem feature direta";
   const buyKind = track.kind === "world-track" ? "world" : "dev";
   const buyTargetId = item ? item.id : "";
   const lockFeedback = buildLockFeedback(item, {
@@ -564,53 +594,98 @@ function renderDevTrackDetail(track, options = {}) {
   });
 
   if (item && !track.isCompleted && !track.isUnlocked && !lockFeedback.blockedReasons.length) {
-    lockFeedback.blockedReasons.push("Este upgrade ainda nao esta disponivel.");
+    lockFeedback.blockedReasons.push("Este upgrade ainda não está disponível.");
   }
-
   if (item && !track.isCompleted && track.isUnlocked && !track.canAfford) {
     lockFeedback.unlockSteps.push("Colete os itens faltantes e tente novamente.");
   }
 
-  const blockedDetails = lockFeedback.blockedReasons.length
+  const badgeState = track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked";
+  const badgeLabel = track.isCompleted ? "Concluído" : track.isUnlocked ? "Disponível" : "Bloqueado";
+  const requirements = item
+    ? formatDevRequirements(item, { devById: options.devById, worldById: options.worldById })
+    : null;
+  const unlocksList = item ? (item.unlocks || []).map(featureLabel) : [];
+
+  const blockedHtml = lockFeedback.blockedReasons.length
     ? lockFeedback.blockedReasons.map((line) => `<li>${line}</li>`).join("")
-    : "<li>Nenhum bloqueio identificado.</li>";
-  const unlockStepsDetails = lockFeedback.unlockSteps.length
+    : null;
+  const stepsHtml = lockFeedback.unlockSteps.length
     ? lockFeedback.unlockSteps.map((line) => `<li>${line}</li>`).join("")
-    : "<li>Sem acao adicional no momento.</li>";
+    : null;
 
   return `
-    <section class="mission-card dev-upgrade-detail" data-selected-dev-upgrade-id="${track.id}">
-      <h4>${track.title} ${track.progressLabel}</h4>
-      <p class="muted">Ramo: ${track.branchId === "game" ? "Jogo" : "Codigo"}</p>
-      <p>${track.description}</p>
-      <p class="muted">Proximo upgrade: ${item ? item.title : "Concluido"}</p>
-      <p>${item ? item.description : "Todos os niveis desta trilha ja foram comprados."}</p>
-      ${item && !track.isCompleted && !track.isUnlocked ? `<p><strong>Para liberar este upgrade:</strong> siga os passos abaixo.</p>` : ""}
-      <p class="muted">Requisitos: ${requirements}</p>
-      <p class="muted">Consumo: ${formatCostList(item ? item.costs : {})}</p>
-      <p class="muted">Faltando: ${missing}</p>
-      <p class="muted">Desbloqueia: ${unlocks}</p>
-      <details class="lesson-box compact" open>
-        <summary>Por que esta bloqueado?</summary>
-        <ul class="hint-list">${blockedDetails}</ul>
-      </details>
-      <details class="lesson-box compact" open>
-        <summary>O que fazer para desbloquear</summary>
-        <ul class="hint-list">${unlockStepsDetails}</ul>
-      </details>
-      <div class="badge-row">
-        <span class="badge ${track.isCompleted ? "completed" : track.isUnlocked ? "unlocked" : "locked"}">
-          ${track.isCompleted ? "Concluido" : track.isUnlocked ? "Disponivel" : "Bloqueado"}
-        </span>
+    <section class="dev-upgrade-detail" data-selected-dev-upgrade-id="${track.id}">
+      <div class="dev-detail-head">
+        <div class="dev-detail-head-info">
+          <h4 class="dev-detail-title">${track.title}</h4>
+          <p class="dev-detail-subtitle">${track.branchId === "game" ? "Ramo: Jogo" : "Ramo: Código"} · ${track.progressLabel}</p>
+        </div>
+        <span class="badge ${badgeState}">${badgeLabel}</span>
       </div>
+
+      <p class="dev-detail-desc">${item ? item.description : "Todos os níveis desta trilha já foram comprados."}</p>
+
+      ${
+        item && !track.isCompleted
+          ? `
+        <div class="dev-detail-section">
+          <p class="dev-detail-label">Próximo nível</p>
+          <p class="dev-detail-value">${item.title}</p>
+        </div>
+
+        <div class="dev-detail-section">
+          <p class="dev-detail-label">Custo</p>
+          ${renderDevCostList(item)}
+        </div>
+
+        ${
+          requirements && requirements !== "Sem requisito adicional"
+            ? `<div class="dev-detail-section">
+          <p class="dev-detail-label">Requisitos</p>
+          <p class="dev-detail-value muted">${requirements}</p>
+        </div>`
+            : ""
+        }
+
+        ${
+          unlocksList.length
+            ? `<div class="dev-detail-section">
+          <p class="dev-detail-label">Desbloqueia</p>
+          <p class="dev-detail-value">${unlocksList.join(", ")}</p>
+        </div>`
+            : ""
+        }
+
+        ${
+          blockedHtml
+            ? `<details class="dev-detail-block dev-detail-block--warn" open>
+          <summary>Por que está bloqueado?</summary>
+          <ul class="hint-list">${blockedHtml}</ul>
+        </details>`
+            : ""
+        }
+
+        ${
+          stepsHtml
+            ? `<details class="dev-detail-block dev-detail-block--info" open>
+          <summary>Como desbloquear</summary>
+          <ul class="hint-list">${stepsHtml}</ul>
+        </details>`
+            : ""
+        }
+      `
+          : ""
+      }
+
       <button
-        class="btn btn-primary"
+        class="btn btn-primary dev-detail-buy-btn"
         data-dev-action="buy"
         data-dev-buy-kind="${buyKind}"
         data-dev-upgrade-id="${buyTargetId}"
         ${canBuy ? "" : "disabled"}
       >
-        ${track.isCompleted ? "Ja concluido" : "Comprar proximo nivel"}
+        ${track.isCompleted ? "✓ Trilha concluída" : canBuy ? "▶ Comprar próximo nível" : "Comprar próximo nível"}
       </button>
     </section>
   `;
@@ -632,12 +707,10 @@ function renderDevTreePage(devTree, worldUpgrades, selectedTrackId) {
 
   return `
     <section class="dev-tree-layout">
-      <section class="mission-card">
-        <h3>Arvore Completa de Desenvolvimento</h3>
-        <p class="muted">Nova arvore separada da arvore de missoes, com trilhas progressivas no mesmo card.</p>
+      <div class="dev-tree-branches">
         ${renderDevBranch("Ramo Jogo", "game", tracksByBranch.game, selectedTrackId)}
         ${renderDevBranch("Ramo Codigo", "code", tracksByBranch.code, selectedTrackId)}
-      </section>
+      </div>
       ${detailHtml}
     </section>
   `;
