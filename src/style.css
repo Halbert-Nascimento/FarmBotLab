@@ -476,10 +476,50 @@ body {
 
 .layout {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(300px, 42%) 1fr;
-  gap: 14px;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
   min-height: 0;
+}
+
+.layout > .panel {
+  min-width: 220px;
+  min-height: 0;
+}
+
+.layout > .code-panel {
+  flex: 0 0 42%;   /* largura inicial: 42% */
+  width: 42%;
+}
+
+.layout > .scene-panel {
+  flex: 1 1 0;
+  min-width: 280px;
+}
+
+/* ── Divisor redimensionável ── */
+.layout-resizer {
+  flex: 0 0 10px;
+  width: 10px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 5;
+  transition: background 120ms ease;
+}
+
+.layout-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  border-radius: 4px;
+  background: var(--color-border);
+  transition: background 120ms ease;
+}
+
+.layout-resizer:hover::after,
+.layout-resizer.is-dragging::after {
+  background: var(--color-accent);
 }
 
 /* ============================================================
@@ -1605,10 +1645,30 @@ body {
     justify-content: flex-start;
   }
 
-  /* Layout grid — usa fr para dividir o espaço disponível (após topbar), sem vh fixo */
+  /* Em mobile empilha verticalmente */
   .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: 2fr 3fr; /* Editor menor, cena maior */
+    flex-direction: column;
+  }
+
+  .layout > .code-panel {
+    flex: 0 0 40%;
+    width: 100%;
+  }
+
+  .layout > .scene-panel {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .layout-resizer {
+    flex: 0 0 10px;
+    height: 10px;
+    width: 100%;
+    cursor: row-resize;
+  }
+
+  .layout-resizer::after {
+    inset: 3px 0;
   }
 
   /* Responsivo da cena e inventario movido para src/game.css */

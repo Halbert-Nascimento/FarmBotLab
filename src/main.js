@@ -451,6 +451,65 @@ window.addEventListener("resize", () => {
   view.resize();
 });
 
+// ─── Divisor redimensionável entre código e cena ─────────────────────────────
+
+(function initLayoutResizer() {
+  const resizer = document.querySelector("#layoutResizer");
+  const codePanel = document.querySelector(".code-panel");
+  const layout = document.querySelector(".layout");
+  if (!resizer || !codePanel || !layout) return;
+
+  const STORAGE_KEY = "farmbot.layout.codePanelWidth";
+  const MIN_WIDTH = 220;
+
+  // Restaura largura salva
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const w = Number(saved);
+      if (w >= MIN_WIDTH) {
+        codePanel.style.flex = `0 0 ${w}px`;
+        codePanel.style.width = `${w}px`;
+      }
+    }
+  } catch (_) {}
+
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  resizer.addEventListener("mousedown", (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = codePanel.getBoundingClientRect().width;
+    resizer.classList.add("is-dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const layoutWidth = layout.getBoundingClientRect().width;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(MIN_WIDTH, Math.min(startWidth + delta, layoutWidth - MIN_WIDTH - 10));
+    codePanel.style.flex = `0 0 ${newWidth}px`;
+    codePanel.style.width = `${newWidth}px`;
+    view.resize();
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove("is-dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    try {
+      localStorage.setItem(STORAGE_KEY, codePanel.getBoundingClientRect().width);
+    } catch (_) {}
+    view.resize();
+  });
+})();
+
 setupDebugHooks();
 resetWorld();
 view.resize();
