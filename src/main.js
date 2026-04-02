@@ -83,15 +83,6 @@ const INVENTORY_ITEM_RULE_HINTS = {
   milho: "Regra futura: exigir upgrade de plantio avancado.",
 };
 
-const INVENTORY_UI_STORAGE_KEY = "farmbot.inventory.ui.v1";
-const INVENTORY_MODES = {
-  TOPBAR: "topbar",
-  OVERLAY: "overlay",
-};
-
-const INVENTORY_FLOAT_CARD_WIDTH = 320;
-const INVENTORY_FLOAT_CARD_HEIGHT = 170;
-const INVENTORY_FLOAT_GAP = 10;
 
 function debugAlert(message) {
   if (!DEBUG_ALERTS) return;
@@ -209,181 +200,26 @@ function updateRunStopState() {
 const logger = createLogger(logEl);
 
 let progressionUI = null;
-let inventoryHudEventsBound = false;
-let selectedInventoryItemId = null;
-let selectedInventoryFloatPosition = { left: 0, top: 0 };
-
-function computeInventoryFloatPosition(itemEl) {
-  if (!inventoryHudEl || !itemEl) {
-    return { left: 0, top: 0 };
-  }
-
-  const hudRect = inventoryHudEl.getBoundingClientRect();
-  const itemRect = itemEl.getBoundingClientRect();
-
-  const maxLeft = Math.max(0, hudRect.width - INVENTORY_FLOAT_CARD_WIDTH - 8);
-  let left = itemRect.right - hudRect.left + INVENTORY_FLOAT_GAP;
-
-  if (left > maxLeft) {
-    left = itemRect.left - hudRect.left - INVENTORY_FLOAT_CARD_WIDTH - INVENTORY_FLOAT_GAP;
-  }
-
-  left = Math.max(0, Math.min(left, maxLeft));
-
-  const maxTop = Math.max(0, hudRect.height - INVENTORY_FLOAT_CARD_HEIGHT - 8);
-  const top = Math.max(0, Math.min(itemRect.top - hudRect.top, maxTop));
-
-  return {
-    left: Math.round(left),
-    top: Math.round(top),
-  };
-}
-
-function loadInventoryUiSettings() {
-  try {
-    const raw = localStorage.getItem(INVENTORY_UI_STORAGE_KEY);
-    if (!raw) {
-      return {
-        mode: INVENTORY_MODES.TOPBAR,
-        collapsed: false,
-      };
-    }
-
-    const parsed = JSON.parse(raw);
-    const mode = Object.values(INVENTORY_MODES).includes(parsed.mode)
-      ? parsed.mode
-      : INVENTORY_MODES.TOPBAR;
-
-    return {
-      mode,
-      collapsed: Boolean(parsed.collapsed),
-    };
-  } catch {
-    return {
-      mode: INVENTORY_MODES.TOPBAR,
-      collapsed: false,
-    };
-  }
-}
-
-function saveInventoryUiSettings(settings) {
-  try {
-    localStorage.setItem(INVENTORY_UI_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // Ignora falhas de persistencia (modo privado, quota, etc.).
-  }
-}
-
-const inventoryUiSettings = loadInventoryUiSettings();
-
-function bindInventoryHudEvents() {
-  if (!inventoryHudEl || inventoryHudEventsBound) return;
-
-  inventoryHudEl.addEventListener("click", (event) => {
-    const itemEl = event.target.closest("[data-inventory-item]");
-    if (itemEl) {
-      const itemId = itemEl.dataset.inventoryItem;
-      if (selectedInventoryItemId === itemId) {
-        selectedInventoryItemId = null;
-      } else {
-        selectedInventoryItemId = itemId;
-        selectedInventoryFloatPosition = computeInventoryFloatPosition(itemEl);
-      }
-      renderInventoryHud();
-      return;
-    }
-
-    const actionEl = event.target.closest("[data-inventory-action]");
-    if (!actionEl) return;
-
-    const action = actionEl.dataset.inventoryAction;
-    if (action === "toggle-collapse") {
-      inventoryUiSettings.collapsed = !inventoryUiSettings.collapsed;
-      saveInventoryUiSettings(inventoryUiSettings);
-      renderInventoryHud();
-      return;
-    }
-
-    if (action === "close-item-detail") {
-      selectedInventoryItemId = null;
-      renderInventoryHud();
-    }
-
-  });
-
-  inventoryHudEventsBound = true;
-}
 
 function renderInventoryHud() {
   if (!inventoryHudEl) return;
 
   const inventoryRows = gamePhases.getItemInventory();
   const inventoryMap = new Map(inventoryRows.map((row) => [row.itemId, row.quantity]));
-  const allIds = [...INVENTORY_ITEM_ORDER];
 
-  const modeClass =
-    inventoryUiSettings.mode === INVENTORY_MODES.OVERLAY
-      ? "mode-overlay"
-      : "mode-topbar";
-  const expandedClass = inventoryUiSettings.collapsed ? "" : "is-expanded-floating";
-  const selectedLabel = INVENTORY_ITEM_LABELS[selectedInventoryItemId] || selectedInventoryItemId;
-  const selectedIcon = INVENTORY_ITEM_ICONS[selectedInventoryItemId] || "📦";
-  const selectedQty = selectedInventoryItemId ? inventoryMap.get(selectedInventoryItemId) || 0 : 0;
-  const selectedDesc =
-    INVENTORY_ITEM_RULE_HINTS[selectedInventoryItemId] ||
-    "Regra futura: definir pre-requisito para liberar este plantio.";
-  const selectedFloatStyle = `left:${selectedInventoryFloatPosition.left}px;top:${selectedInventoryFloatPosition.top}px;`;
-
-  inventoryHudEl.className = `inventory-hud ${modeClass} ${expandedClass} ${
-    inventoryUiSettings.collapsed ? "is-collapsed" : ""
-  }`;
-
-  if (scenePanelEl) {
-    scenePanelEl.classList.toggle(
-      "inventory-mode-overlay",
-      inventoryUiSettings.mode === INVENTORY_MODES.OVERLAY
-    );
-  }
-
+  inventoryHudEl.className = "inventory-hud";
   inventoryHudEl.innerHTML = `
-    <div class="inventory-hud-head">
-      <div class="inventory-toolbar">
-        <button class="btn inventory-btn" data-inventory-action="toggle-collapse">
-          ${inventoryUiSettings.collapsed ? "Expandir" : "Recolher"}
-        </button>
-      </div>
+    <div class="inventory-strip">
+      ${INVENTORY_ITEM_ORDER.map((itemId) => {
+        const icon = INVENTORY_ITEM_ICONS[itemId] || "📦";
+        const label = INVENTORY_ITEM_LABELS[itemId] || itemId;
+        const qty = inventoryMap.get(itemId) || 0;
+        return `<div class="inventory-strip-item" title="${label}">
+          <span class="item-icon">${icon}</span>
+          <span class="item-qty">${qty}</span>
+        </div>`;
+      }).join("")}
     </div>
-    <div class="inventory-list ${inventoryUiSettings.collapsed ? "collapsed-view" : "expanded-view"}">
-      ${allIds
-        .map((itemId) => {
-          const label = INVENTORY_ITEM_LABELS[itemId] || itemId;
-          const icon = INVENTORY_ITEM_ICONS[itemId] || "📦";
-          const description =
-            INVENTORY_ITEM_RULE_HINTS[itemId] ||
-            "Regra futura: definir pre-requisito para liberar este plantio.";
-          const amount = inventoryMap.get(itemId) || 0;
-          const selectedClass = selectedInventoryItemId === itemId ? "is-selected" : "";
-          if (inventoryUiSettings.collapsed) {
-            return `<div class="inventory-item collapsed ${selectedClass}" data-inventory-item="${itemId}" title="${label}"><span class="item-icon">${icon}</span><span class="item-qty">${amount}</span></div>`;
-          } else {
-            return `<div class="inventory-item expanded ${selectedClass}" data-inventory-item="${itemId}"><span class="item-icon">${icon}</span><div class="item-info"><div class="item-main"><span class="item-label">${label}</span><span class="item-qty">Qtd: ${amount}</span></div><p class="item-desc">${description}</p></div></div>`;
-          }
-        })
-        .join("")}
-    </div>
-    ${selectedInventoryItemId
-      ? `<div class="inventory-item-float" style="${selectedFloatStyle}">
-          <button class="btn inventory-float-close" data-inventory-action="close-item-detail">Fechar</button>
-          <div class="inventory-item-float-head">
-            <span class="item-icon">${selectedIcon}</span>
-            <div>
-              <p class="inventory-item-float-title">${selectedLabel}</p>
-              <p class="inventory-item-float-qty">Qtd atual: ${selectedQty}</p>
-            </div>
-          </div>
-          <p class="inventory-item-float-desc">${selectedDesc}</p>
-        </div>`
-      : ""}
   `;
 }
 
@@ -616,7 +452,6 @@ window.addEventListener("resize", () => {
 });
 
 setupDebugHooks();
-bindInventoryHudEvents();
 resetWorld();
 view.resize();
 progressionUI.render();
