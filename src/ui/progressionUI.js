@@ -30,56 +30,98 @@ function formatMissionLabel(mission) {
   return `Missao ${ordinal} - ${mission.title}`;
 }
 
+// ── Extrai % de progresso de "atual/total" ──
+function missionProgressPct(mission) {
+  const m = (mission.progressLabel || "").match(/(\d+)[^\d]+(\d+)/);
+  if (!m) return 0;
+  const total = parseInt(m[2]);
+  return total ? Math.min(100, Math.round((parseInt(m[1]) / total) * 100)) : 0;
+}
+
 function renderSummary(current, unlockedFeatures) {
+  const missionPct = current.totalMissionCount
+    ? Math.round((current.completedMissionCount / current.totalMissionCount) * 100)
+    : 0;
+
+  const chips = [
+    { icon: "📍", label: "Nó Atual",    value: current.title,                              wide: true  },
+    { icon: "🎯", label: "Missões",     value: `${current.completedMissionCount}/${current.totalMissionCount}`, pct: missionPct },
+    { icon: "▶",  label: "Execuções",   value: current.progress.runs                                    },
+    { icon: "🔓", label: "Features",    value: unlockedFeatures.length                                   },
+  ];
+
   return `
     <section class="progress-summary">
-      <article class="progress-chip">
-        <strong>No Atual</strong>
-        <span>${current.title}</span>
-      </article>
-      <article class="progress-chip">
-        <strong>Missoes</strong>
-        <span>${current.completedMissionCount}/${current.totalMissionCount}</span>
-      </article>
-      <article class="progress-chip">
-        <strong>Runs</strong>
-        <span>${current.progress.runs}</span>
-      </article>
-      <article class="progress-chip">
-        <strong>Features</strong>
-        <span>${unlockedFeatures.length}</span>
-      </article>
+      ${chips.map((chip) => `
+        <article class="progress-chip${chip.wide ? " progress-chip--wide" : ""}">
+          <span class="chip-icon" aria-hidden="true">${chip.icon}</span>
+          <strong class="chip-label">${chip.label}</strong>
+          <span class="chip-value">${chip.value}</span>
+          ${chip.pct !== undefined ? `
+            <div class="chip-bar-track" title="${chip.pct}%">
+              <div class="chip-bar-fill" style="width:${chip.pct}%"></div>
+            </div>
+          ` : ""}
+        </article>
+      `).join("")}
     </section>
   `;
 }
 
 function renderActiveMissions(activeMissions) {
   if (!activeMissions.length) {
-    return `<p class="muted">Sem missoes ativas no momento.</p>`;
+    return `<p class="muted qmc-empty">Sem missões ativas no momento.</p>`;
   }
 
   return `
-    <section class="mission-list">
+    <div class="quick-missions">
       ${activeMissions
-        .map(
-          (mission) => `
-        <article class="mission-card">
-          <h4>${formatMissionLabel(mission)}</h4>
-          <p class="muted">${mission.objective}</p>
-          <p>${mission.description || ""}</p>
-          <div class="badge-row">
-            <span class="${badgeClass(mission.isCompleted, mission.isUnlocked)}">${statusText(
-              mission.isCompleted,
-              mission.isUnlocked
-            )}</span>
-          </div>
-          <p class="muted">${mission.progressLabel}</p>
-          ${renderMissionHelp(mission, true)}
-        </article>
-      `
-        )
+        .map((mission) => {
+          const pct        = missionProgressPct(mission);
+          const stateClass = mission.isCompleted ? "is-completed" : "is-unlocked";
+          const stateIcon  = mission.isCompleted ? "✓" : "▶";
+          const hints      = mission.hints || [];
+          const lesson     = mission.lesson;
+
+          // Conteúdo expandido: dicas + lição
+          const expandedHtml = `
+            <div class="qmc-expanded">
+              ${hints.length ? `
+                <ul class="qmc-hints-list">
+                  ${hints.map((h) => `<li>💡 ${h}</li>`).join("")}
+                </ul>
+              ` : ""}
+              ${lesson ? `
+                <div class="qmc-lesson">
+                  <p class="qmc-lesson-topic">📖 ${lesson.topic}</p>
+                  <p class="qmc-lesson-summary">${lesson.summary}</p>
+                  ${lesson.syntax ? `<pre class="code-mini">${lesson.syntax}</pre>` : ""}
+                </div>
+              ` : ""}
+              ${!hints.length && !lesson ? `<p class="muted" style="font-size:.78rem">Sem dicas adicionais.</p>` : ""}
+            </div>
+          `;
+
+          return `
+            <details class="quick-mission-card ${stateClass}">
+              <summary class="qmc-summary">
+                <div class="qmc-header">
+                  <span class="qmc-state-icon" aria-hidden="true">${stateIcon}</span>
+                  <h4 class="qmc-title">${formatMissionLabel(mission)}</h4>
+                  <span class="qmc-progress-label">${mission.progressLabel || ""}</span>
+                  <span class="qmc-chevron" aria-hidden="true">›</span>
+                </div>
+                <p class="qmc-objective">${mission.objective}</p>
+                <div class="qmc-bar-track" title="${pct}% concluído">
+                  <div class="qmc-bar-fill" style="width:${pct}%"></div>
+                </div>
+              </summary>
+              ${expandedHtml}
+            </details>
+          `;
+        })
         .join("")}
-    </section>
+    </div>
   `;
 }
 
@@ -1401,14 +1443,30 @@ export function createProgressionUI({ gamePhases, onLog }) {
     const summaryHtml = renderSummary(current, unlockedFeatures);
     const activeHtml = renderActiveMissions(activeMissions);
 
+    const learningHtml = renderCurrentLearning(current, tree);
+    const featuresHtml = unlockedFeatures.length
+      ? unlockedFeatures.map((f) => `<span class="quick-feature-chip">${featureLabel(f)}</span>`).join("")
+      : `<p class="muted">Nenhuma feature extra desbloqueada ainda.</p>`;
+
     modalContent.innerHTML = `
       ${summaryHtml}
-      ${renderCurrentLearning(current, tree)}
-      <h3>Missoes Ativas</h3>
-      ${activeHtml}
-      ${renderUnlockedOverview(tree, unlockedFeatures)}
-      <hr class="divider" />
-      <p class="muted">Features desbloqueadas: ${unlockedFeatures.join(", ") || "nenhuma"}</p>
+
+      <section class="quick-section">
+        <h3 class="quick-section-title">🎯 Missões Ativas</h3>
+        ${activeHtml}
+      </section>
+
+      ${learningHtml ? `
+        <section class="quick-section">
+          <h3 class="quick-section-title">📖 Aprendendo Agora</h3>
+          ${learningHtml}
+        </section>
+      ` : ""}
+
+      <section class="quick-section">
+        <h3 class="quick-section-title">🔓 Features Desbloqueadas</h3>
+        <div class="quick-features">${featuresHtml}</div>
+      </section>
     `;
 
     pageContent.innerHTML = `

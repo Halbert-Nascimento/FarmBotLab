@@ -887,43 +887,304 @@ body {
 }
 
 /* ── Chips de sumário ── */
+/* ── Chips de resumo (linha de stats no topo do modal) ── */
 .progress-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
-  gap: 10px;
-  margin-bottom: 0;
+  grid-template-columns: 1fr repeat(3, minmax(90px, 1fr));
+  gap: 8px;
 }
 
 .progress-chip {
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-accent);
   border-radius: 12px;
-  background: var(--color-bg-surface);
+  background: var(--color-bg-surface-raised);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  transition: box-shadow 140ms ease;
+  gap: 4px;
+  transition: box-shadow 140ms ease, border-color 140ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-chip::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-accent);
+  border-radius: 12px 12px 0 0;
 }
 
 .progress-chip:hover {
-  box-shadow: 0 4px 12px var(--color-shadow);
+  box-shadow: 0 4px 14px var(--color-shadow);
+  border-color: var(--color-accent);
 }
 
-.progress-chip strong {
+/* chip que ocupa a primeira coluna inteira (wide) */
+.progress-chip--wide {
+  grid-column: 1 / 2;
+}
+
+.chip-icon {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.chip-label {
   display: block;
-  font-size: 0.66rem;
+  font-size: 0.63rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-secondary);
 }
 
-.progress-chip span {
-  font-size: 1.4rem;
+.chip-value {
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--color-accent);
   line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.progress-chip--wide .chip-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.chip-bar-track {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--color-border);
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.chip-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-accent);
+  transition: width 400ms ease;
+}
+
+/* ── Seções dentro do modal ── */
+.quick-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-section-title {
+  margin: 0;
+  font-size: 0.70rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Cards de missão no modal rápido ── */
+.quick-missions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qmc-empty {
+  padding: 8px 0;
+}
+
+/* ── Card de missão (details/summary expansível) ── */
+.quick-mission-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+  overflow: hidden;
+}
+
+.quick-mission-card.is-unlocked {
+  border-left: 3px solid var(--color-accent);
+}
+
+.quick-mission-card.is-completed {
+  border-left: 3px solid var(--color-green);
+  opacity: 0.8;
+}
+
+.quick-mission-card[open] {
+  box-shadow: 0 4px 14px var(--color-shadow);
+  border-color: var(--color-accent);
+}
+
+.quick-mission-card.is-completed[open] {
+  border-color: var(--color-green);
+}
+
+/* Remove marcador nativo do <summary> */
+.qmc-summary {
+  list-style: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  user-select: none;
+}
+
+.qmc-summary::-webkit-details-marker { display: none; }
+
+.qmc-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.qmc-state-icon {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: var(--color-accent);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.quick-mission-card.is-completed .qmc-state-icon {
+  color: var(--color-green);
+}
+
+.qmc-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.qmc-progress-label {
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Seta rotacionável */
+.qmc-chevron {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  transition: transform 200ms ease;
+  display: inline-block;
+  line-height: 1;
+}
+
+.quick-mission-card[open] .qmc-chevron {
+  transform: rotate(90deg);
+}
+
+.qmc-objective {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.qmc-bar-track {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.qmc-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--color-accent);
+  transition: width 500ms ease;
+}
+
+.quick-mission-card.is-completed .qmc-bar-fill {
+  background: var(--color-green);
+}
+
+/* Conteúdo expandido */
+.qmc-expanded {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.qmc-hints-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qmc-hints-list li {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.qmc-lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.qmc-lesson-topic {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.qmc-lesson-summary {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Feature chips no modal ── */
+.quick-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-feature-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.quick-feature-chip:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 /* ============================================================
