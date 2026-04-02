@@ -1,6 +1,7 @@
 import { createFarmWorld } from "./core/farmWorld.js";
 import { createProgramRunner } from "./core/programRunner.js";
 import { createGamePhases } from "./core/gamePhases.js";
+import { createGameController } from "./core/gameController.js";
 import { createThreeFarmView } from "./render/threeFarmView.js";
 import { createEditor } from "./ui/editor.js";
 import { createLogger } from "./ui/logger.js";
@@ -277,89 +278,19 @@ const view = createThreeFarmView({
   onDebugError: debugAlert,
 });
 
+const gameController = createGameController({
+  world,
+  gamePhases,
+  view,
+  onLog: logger.append,
+  onUIUpdate: () => {
+    renderInventoryHud();
+    updateStatsHud();
+  },
+});
+
 async function performAction(action) {
-  const command = typeof action === "string" ? { type: action, args: [] } : action;
-  const actionType = command.type;
-
-  if (actionType === "right") {
-    const result = world.moveBy(1, 0);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    updateStatsHud();
-    return;
-  }
-
-  if (actionType === "left") {
-    const result = world.moveBy(-1, 0);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    updateStatsHud();
-    return;
-  }
-
-  if (actionType === "up") {
-    const result = world.moveBy(0, -1);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    updateStatsHud();
-    return;
-  }
-
-  if (actionType === "down") {
-    const result = world.moveBy(0, 1);
-    if (result.moved) {
-      gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
-      logger.append(`Moveu para (${result.to.x}, ${result.to.y})`);
-    } else {
-      logger.append("Bateu na borda da fazenda");
-    }
-    renderInventoryHud();
-    updateStatsHud();
-    return;
-  }
-
-  if (actionType === "plant") {
-    const cropArg = command.args && command.args.length > 0 ? command.args[0] : "generic";
-    const cropType = typeof cropArg === "string" && cropArg.trim() ? cropArg.trim().toLowerCase() : "generic";
-    const result = world.plant(cropType);
-    gamePhases.recordEvent("plant", { cropType: result.crop.type });
-    view.setCrop(result.x, result.y, result.crop.type);
-    logger.append(`Plantou ${result.crop.type} em (${result.x}, ${result.y})`);
-    renderInventoryHud();
-    updateStatsHud();
-    return;
-  }
-
-  if (actionType === "harvest") {
-    const result = world.harvest();
-    if (result.wasPlanted) {
-      const cropType = result.harvestedCrop && result.harvestedCrop.type ? result.harvestedCrop.type : "generic";
-      gamePhases.recordEvent("harvest", { cropType });
-    }
-    view.setCrop(result.x, result.y, null);
-    logger.append(`Colheu em (${result.x}, ${result.y})`);
-    renderInventoryHud();
-    updateStatsHud();
-  }
+  return gameController.executeAction(action);
 }
 
 const runner = createProgramRunner({
