@@ -191,6 +191,7 @@ export function createFarmWorld({
     const crop = {
       type: cropType,
       plantedTurn: state.turn,
+      plantedAt: Date.now(),
     };
     state.crops.set(key, crop);
 
@@ -270,6 +271,50 @@ export function createFarmWorld({
     };
   }
 
+  function restoreSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") return;
+
+    if (snapshot.dimensions) {
+      const w = snapshot.dimensions.width;
+      const h = snapshot.dimensions.height;
+      if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+        width = w;
+        height = h;
+      }
+    }
+
+    if (snapshot.position) {
+      state.x = Number.isFinite(snapshot.position.x) ? snapshot.position.x : 0;
+      state.y = Number.isFinite(snapshot.position.y) ? snapshot.position.y : 0;
+    }
+
+    if (Number.isFinite(snapshot.turn)) {
+      state.turn = snapshot.turn;
+    }
+
+    state.crops.clear();
+    if (Array.isArray(snapshot.crops)) {
+      snapshot.crops.forEach(({ x, y, crop }) => {
+        if (crop && typeof crop.type === "string") {
+          state.crops.set(tileKey(x, y), {
+            type: crop.type,
+            plantedTurn: Number.isFinite(crop.plantedTurn) ? crop.plantedTurn : state.turn,
+            plantedAt: Number.isFinite(crop.plantedAt) ? crop.plantedAt : Date.now(),
+          });
+        }
+      });
+    }
+
+    state.soils.clear();
+    if (Array.isArray(snapshot.soils)) {
+      snapshot.soils.forEach(({ x, y, soil }) => {
+        if (soil) state.soils.set(tileKey(x, y), cloneSoil(soil));
+      });
+    }
+
+    fillMissingSoils();
+  }
+
   return {
     get gridSize() {
       return width;
@@ -290,5 +335,6 @@ export function createFarmWorld({
     harvest,
     passTurn,
     getSnapshot,
+    restoreSnapshot,
   };
 }

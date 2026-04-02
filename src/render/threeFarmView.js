@@ -701,7 +701,7 @@ export function createThreeFarmView({
     setTileState(x, y, soilType, hasCrop ? tile.userData.cropType : null);
   }
 
-  function setCrop(x, y, cropType) {
+  function setCrop(x, y, cropType, plantedTimeMs) {
     const tile = tiles.get(tileKey(x, y));
     if (!tile) return;
 
@@ -736,11 +736,12 @@ export function createThreeFarmView({
       
       cropsGroup.add(cropGroup);
       
-      // Armazena informações para atualização posterior com TEMPO REAL
+      // Armazena informações para atualização posterior com TEMPO REAL.
+      // plantedTimeMs aceita valor externo (restore) para continuar animação de onde parou.
       cropModels.set(key, {
         group: cropGroup,
         cropType: cropType,
-        plantedTimeMs: Date.now(),  // Timestamp em ms (não turn)
+        plantedTimeMs: typeof plantedTimeMs === "number" ? plantedTimeMs : Date.now(),
       });
     }
     
@@ -848,7 +849,7 @@ export function createThreeFarmView({
     });
 
     snapshot.crops.forEach((entry) => {
-      setCrop(entry.x, entry.y, entry.crop.type);
+      setCrop(entry.x, entry.y, entry.crop.type, entry.crop.plantedAt);
     });
 
     syncBotPosition(snapshot.position);

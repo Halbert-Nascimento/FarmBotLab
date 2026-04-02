@@ -36,7 +36,6 @@ const zoomSlider = document.querySelector("#zoomSlider");
 const avatarSelect = document.querySelector("#avatarSelect");
 const sceneRoot = document.querySelector("#scene");
 const inventoryHudEl = document.querySelector("#inventoryHud");
-const scenePanelEl = document.querySelector(".scene-panel");
 const themeToggleBtn = document.querySelector("#themeToggleBtn");
 const themeSelect    = document.querySelector("#themeSelect");
 const clearLogBtn    = document.querySelector("#clearLogBtn");
@@ -46,7 +45,8 @@ const sceneStatPlants = document.querySelector("#sceneStatPlants");
 const sceneStatHarvests = document.querySelector("#sceneStatHarvests");
 const sceneStatMission = document.querySelector("#sceneStatMission");
 
-const THEME_STORAGE_KEY = "farmbot.theme";
+const THEME_STORAGE_KEY    = "farmbot.theme";
+const GAMESTATE_STORAGE_KEY = "farmbot.gamestate";
 
 const INVENTORY_ITEM_ORDER = [
   "capim",
@@ -75,14 +75,6 @@ const INVENTORY_ITEM_ICONS = {
   milho: "🌽",
 };
 
-const INVENTORY_ITEM_RULE_HINTS = {
-  capim: "Regra futura: liberar plantio de capim por tutorial inicial.",
-  trigo: "Regra futura: exigir solo preparado e nivel minimo de nutrientes.",
-  arvore: "Regra futura: exigir area maior e progresso de evolucao do mundo.",
-  girasol: "Regra futura: exigir desbloqueio de sementes especiais.",
-  morango: "Regra futura: exigir fase de cultivo intermediaria liberada.",
-  milho: "Regra futura: exigir upgrade de plantio avancado.",
-};
 
 
 function debugAlert(message) {
@@ -443,6 +435,7 @@ window.addEventListener("resize", () => {
 
 setupDebugHooks();
 resetWorld();
+restoreGameState();
 view.resize();
 progressionUI.render();
 renderInventoryHud();
@@ -583,6 +576,67 @@ window.gamePhases = {
     updateStatsHud();
   },
 };
+
+// ─── Persistência de estado (localStorage) ──────────────────────────────────
+
+function restoreGameState() {
+  try {
+    const raw = localStorage.getItem(GAMESTATE_STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+
+    // Compatibilidade: save v1 colocava gamePhases diretamente na raiz
+    const phasesData = saved.version >= 2 ? saved.phases : saved;
+
+    // 1. Progressão: missões, upgrades, inventário
+    if (phasesData) {
+      gamePhases.restoreState(phasesData);
+    }
+
+    // 2. Mundo: grid, posição do drone, culturas, solo
+    if (saved.world) {
+      world.restoreSnapshot(saved.world);
+      const dims = world.getGridDimensions();
+      applyWorldDimensions(dims.width, dims.height, "restore");
+      view.reset(world.getSnapshot());
+    }
+
+    // 3. UI: tema, paleta e acento visual
+    if (saved.ui) {
+      if (saved.ui.theme)   applyTheme(saved.ui.theme);
+      if (saved.ui.palette) applyPalette(saved.ui.palette);
+      if (saved.ui.accent)  applyAccent(saved.ui.accent);
+    }
+
+    renderInventoryHud();
+    updateStatsHud();
+    if (progressionUI) progressionUI.render();
+
+    return true;
+  } catch (e) {
+    console.warn("[farmbot] Falha ao restaurar estado salvo:", e);
+    return false;
+  }
+}
+
+window.addEventListener("beforeunload", () => {
+  try {
+    const snapshot = {
+      version: 2,
+      savedAt: Date.now(),
+      phases: gamePhases.getFullState(),
+      world: world.getSnapshot(),
+      ui: {
+        theme:   document.documentElement.getAttribute("data-theme"),
+        palette: document.documentElement.getAttribute("data-palette"),
+        accent:  document.documentElement.getAttribute("data-accent"),
+      },
+    };
+    localStorage.setItem(GAMESTATE_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch (e) {
+    console.warn("[farmbot] Falha ao salvar estado:", e);
+  }
+});
 
 logger.append("Sistema de fases/missoes habilitado. Use window.gamePhases para inspecionar/prototipar.");
 logger.append("Evolucao manual habilitada: use getWorldUpgrades(), getItemInventory() e buyWorldUpgrade(id).");
