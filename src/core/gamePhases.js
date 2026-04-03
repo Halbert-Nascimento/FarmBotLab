@@ -1519,6 +1519,69 @@ export function createGamePhases({
     return { ok: true, phase: getCurrentPhase() };
   }
 
+  function getFullState() {
+    return {
+      stats: { ...stats, plantsByCrop: { ...stats.plantsByCrop }, itemsByType: { ...stats.itemsByType } },
+      unlockedNodeIds: [...unlockedNodeIds],
+      completedNodeIds: [...completedNodeIds],
+      completedMissionIds: [...completedMissionIds],
+      unlockedRewardFeatureIds: [...unlockedRewardFeatureIds],
+      purchasedWorldUpgradeIds: [...purchasedWorldUpgradeIds],
+      purchasedDevUpgradeIds: [...purchasedDevUpgradeIds],
+      currentWorldSize: { ...currentWorldSize },
+    };
+  }
+
+  function restoreState(saved) {
+    if (!saved || typeof saved !== "object") return;
+
+    if (saved.stats && typeof saved.stats === "object") {
+      stats = {
+        ...createInitialStats(),
+        ...saved.stats,
+        plantsByCrop: saved.stats.plantsByCrop && typeof saved.stats.plantsByCrop === "object"
+          ? { ...saved.stats.plantsByCrop } : {},
+        itemsByType: saved.stats.itemsByType && typeof saved.stats.itemsByType === "object"
+          ? { ...saved.stats.itemsByType } : {},
+      };
+    }
+
+    if (Array.isArray(saved.unlockedNodeIds)) {
+      unlockedNodeIds.clear();
+      saved.unlockedNodeIds.forEach((id) => unlockedNodeIds.add(id));
+    }
+    if (Array.isArray(saved.completedNodeIds)) {
+      completedNodeIds.clear();
+      saved.completedNodeIds.forEach((id) => completedNodeIds.add(id));
+    }
+    if (Array.isArray(saved.completedMissionIds)) {
+      completedMissionIds.clear();
+      saved.completedMissionIds.forEach((id) => completedMissionIds.add(id));
+    }
+    if (Array.isArray(saved.unlockedRewardFeatureIds)) {
+      unlockedRewardFeatureIds.clear();
+      saved.unlockedRewardFeatureIds.forEach((id) => unlockedRewardFeatureIds.add(id));
+    }
+    if (Array.isArray(saved.purchasedWorldUpgradeIds)) {
+      purchasedWorldUpgradeIds.clear();
+      saved.purchasedWorldUpgradeIds.forEach((id) => purchasedWorldUpgradeIds.add(id));
+    }
+    if (Array.isArray(saved.purchasedDevUpgradeIds)) {
+      purchasedDevUpgradeIds.clear();
+      saved.purchasedDevUpgradeIds.forEach((id) => purchasedDevUpgradeIds.add(id));
+    }
+    if (saved.currentWorldSize && typeof saved.currentWorldSize === "object") {
+      if (Number.isFinite(saved.currentWorldSize.width) && Number.isFinite(saved.currentWorldSize.height)) {
+        currentWorldSize = { ...saved.currentWorldSize };
+      }
+    }
+
+    // Reavalia missões e nós com base no estado restaurado
+    recomputeCompletedNodes();
+    tryUnlockNodes();
+    emitPhaseChanged("restore");
+  }
+
   function resetProgress({ keepUnlockedNodes = false } = {}) {
     stats = createInitialStats();
     completedMissionIds.clear();
@@ -1561,5 +1624,7 @@ export function createGamePhases({
     advancePhase,
     setPhase,
     resetProgress,
+    getFullState,
+    restoreState,
   };
 }

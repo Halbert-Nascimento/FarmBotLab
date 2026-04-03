@@ -123,23 +123,39 @@ function normalizeModernDeclarations(sourceCode) {
   return out;
 }
 
-export function createProgramRunner({ getCode, onAction, onLog, onDebugError }) {
+export function createProgramRunner({ getCode, onAction, onQuery, onLog, onDebugError }) {
   const actionQueue = [];
   let isExecuting = false;
   let stopRequested = false;
 
   function initApi(interpreter, globalObject) {
-    const native = (name, action) => {
-      const fn = (...args) => {
-        actionQueue.push({
-          type: action,
-          args,
-        });
+    // ── Canal 1: Comandos void (unidirecional — fila de ações) ──────────────
+    var native = function (name, action) {
+      var fn = function () {
+        var args = [];
+        for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);
+        actionQueue.push({ type: action, args: args });
       };
-      interpreter.setProperty(globalObject, name, interpreter.createNativeFunction(fn));
+      interpreter.setProperty(
+        globalObject, name, interpreter.createNativeFunction(fn)
+      );
     };
 
-    // API principal em pt-BR
+    // ── Canal 2: Sensores com retorno (síncrono) ────────────────────────────
+    // Chama onQuery({ type, args }) → valor JS nativo, converte para sandbox.
+    var nativeWithReturn = function (name, action) {
+      var fn = function () {
+        var args = [];
+        for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);
+        var result = onQuery({ type: action, args: args });
+        return interpreter.nativeToPseudo(result);
+      };
+      interpreter.setProperty(
+        globalObject, name, interpreter.createNativeFunction(fn)
+      );
+    };
+
+    // ── API de comando em pt-BR ─────────────────────────────────────────────
     native("moverDireita", "right");
     native("moverEsquerda", "left");
     native("moverCima", "up");
@@ -147,13 +163,35 @@ export function createProgramRunner({ getCode, onAction, onLog, onDebugError }) 
     native("plantar", "plant");
     native("colher", "harvest");
 
-    // Aliases legados (compatibilidade com scripts antigos)
+    // ── API de comando — aliases EN ─────────────────────────────────────────
     native("moveRight", "right");
     native("moveLeft", "left");
     native("moveUp", "up");
     native("moveDown", "down");
     native("plant", "plant");
     native("harvest", "harvest");
+
+    // ── Sensores pt-BR ──────────────────────────────────────────────────────
+    nativeWithReturn("obterCultura", "getCrop");
+    nativeWithReturn("obterSolo", "getSoilType");
+    nativeWithReturn("posicaoX", "getPosX");
+    nativeWithReturn("posicaoY", "getPosY");
+    nativeWithReturn("verificarMaturidade", "isRipe");
+    nativeWithReturn("tamanhoCampoX", "getWorldWidth");
+    nativeWithReturn("tamanhoCampoY", "getWorldHeight");
+    nativeWithReturn("contarItem", "getItemCount");
+    nativeWithReturn("turnoAtual", "getCurrentTurn");
+
+    // ── Sensores EN ─────────────────────────────────────────────────────────
+    nativeWithReturn("getCrop", "getCrop");
+    nativeWithReturn("getSoilType", "getSoilType");
+    nativeWithReturn("getPosX", "getPosX");
+    nativeWithReturn("getPosY", "getPosY");
+    nativeWithReturn("isRipe", "isRipe");
+    nativeWithReturn("getWorldWidth", "getWorldWidth");
+    nativeWithReturn("getWorldHeight", "getWorldHeight");
+    nativeWithReturn("getItemCount", "getItemCount");
+    nativeWithReturn("getCurrentTurn", "getCurrentTurn");
   }
 
   async function run() {
