@@ -6,6 +6,7 @@ import { createThreeFarmView } from "./render/threeFarmView.js";
 import { createEditor } from "./ui/editor.js";
 import { createLogger } from "./ui/logger.js";
 import { createProgressionUI } from "./ui/progressionUI.js";
+import { VERSION, BUILD_DATE } from "./version.js";
 
 const DEBUG_ALERTS = true;
 
@@ -535,6 +536,12 @@ if (clearLogBtn) {
 
 updateStatsHud();
 
+window.farmbot = {
+  version: VERSION.toString(),
+  buildDate: BUILD_DATE,
+  full: VERSION.full(),
+};
+
 window.gamePhases = {
   getCurrent: () => gamePhases.getCurrentPhase(),
   getAll: () => gamePhases.getAllPhases(),
@@ -638,6 +645,15 @@ window.addEventListener("beforeunload", () => {
     console.warn("[farmbot] Falha ao salvar estado:", e);
   }
 });
+
+logger.append(`${VERSION.full()} (Build: ${BUILD_DATE})`);
+
+// Atualiza versão exibida na topbar
+const appVersionEl = document.querySelector("#appVersion");
+if (appVersionEl) {
+  appVersionEl.textContent = `v${VERSION.toString()}`;
+  appVersionEl.title = `Compilado em ${BUILD_DATE}`;
+}
 
 logger.append("Sistema de fases/missoes habilitado. Use window.gamePhases para inspecionar/prototipar.");
 logger.append("Evolucao manual habilitada: use getWorldUpgrades(), getItemInventory() e buyWorldUpgrade(id).");
