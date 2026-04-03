@@ -288,6 +288,7 @@ async function performAction(action) {
 const runner = createProgramRunner({
   getCode: editor.getValue,
   onAction: performAction,
+  onQuery: (query) => gameController.queryState(query),
   onLog: logger.append,
   onDebugError: debugAlert,
 });

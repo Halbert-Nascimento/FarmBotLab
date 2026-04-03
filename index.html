@@ -70,7 +70,7 @@
           <!-- ABA: REFERÊNCIA -->
           <div class="code-tab-content" id="code-reference-tab">
             <div class="reference-content">
-              <h3>Referência de Comandos da API</h3>
+              <h3>Comandos (Ações)</h3>
               <ul class="api-list">
                 <li><code>moverDireita()</code> — move o bot uma célula para a direita</li>
                 <li><code>moverEsquerda()</code> — move para a esquerda</li>
@@ -79,7 +79,20 @@
                 <li><code>plantar("tipo")</code> — planta na célula atual: <code>capim</code>, <code>trigo</code>, <code>milho</code>, <code>arvore</code>, <code>girasol</code>, <code>morango</code></li>
                 <li><code>colher()</code> — colhe o que está na célula atual</li>
               </ul>
-              <p class="hint">Aliases em inglês também funcionam: moveRight(), moveLeft(), moveUp(), moveDown(), plant(), harvest()</p>
+
+              <h3>Sensores (Retornam Valores)</h3>
+              <ul class="api-list">
+                <li><code>obterCultura()</code> — retorna o tipo de planta na célula atual (<code>"capim"</code>, <code>"trigo"</code>, …) ou <code>null</code></li>
+                <li><code>obterSolo()</code> — retorna o tipo de solo na célula atual (<code>"loam"</code>, <code>"clay"</code>, …)</li>
+                <li><code>posicaoX()</code> — retorna a coordenada X do drone</li>
+                <li><code>posicaoY()</code> — retorna a coordenada Y do drone</li>
+                <li><code>verificarMaturidade()</code> — retorna <code>true</code> se a planta atual está pronta para colher</li>
+                <li><code>tamanhoCampoX()</code> — largura do campo (colunas)</li>
+                <li><code>tamanhoCampoY()</code> — altura do campo (linhas)</li>
+                <li><code>contarItem("tipo")</code> — quantidade do item no inventário</li>
+                <li><code>turnoAtual()</code> — número do turno atual</li>
+              </ul>
+              <p class="hint">Aliases EN: getCrop(), getSoilType(), getPosX(), getPosY(), isRipe(), getWorldWidth(), getWorldHeight(), getItemCount(), getCurrentTurn()</p>
             </div>
           </div>
 
