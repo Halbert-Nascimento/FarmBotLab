@@ -8,22 +8,26 @@
  * O main.js passa a ser apenas ponte (UI binding) — não toma decisões de jogo.
  */
 
-// Mapeamento de comandos: aliases em português/inglês → tipo interno (inglês)
+// Mapeamento de comandos: aliases → tipo interno
+// Apenas tipos despachados internamente pelo executeAction ou pelo programRunner.
 const COMMAND_ALIASES = {
-  // Movimento
-  right:    "right",
-  left:     "left",
-  up:       "up",
-  down:     "down",
+  // Ações
+  plant:   "plant",
+  plantar: "plant",
+  harvest: "harvest",
+  colher:  "harvest",
+};
+
+// Direções válidas aceitas por mover(direcao) e seus tipos internos.
+const MOVE_DIRECTION_MAP = {
   direita:  "right",
   esquerda: "left",
   cima:     "up",
   baixo:    "down",
-  // Ações
-  plant:    "plant",
-  plantar:  "plant",
-  harvest:  "harvest",
-  colher:   "harvest",
+  right:    "right",
+  left:     "left",
+  up:       "up",
+  down:     "down",
 };
 
 // Feature requerida para plantar cada cultura.
@@ -308,6 +312,25 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
       case "left":    return handleMove(-1, 0);
       case "up":      return handleMove(0, -1);
       case "down":    return handleMove(0, 1);
+      case "move": {
+        const dirArg = Array.isArray(command.args) && command.args.length > 0
+          ? command.args[0]
+          : null;
+        const dirStr = typeof dirArg === "string" ? dirArg.trim().toLowerCase() : null;
+        const resolved = dirStr ? MOVE_DIRECTION_MAP[dirStr] : null;
+        if (!resolved) {
+          log(`Direção inválida: "${dirArg}". Use 'direita', 'esquerda', 'cima' ou 'baixo'.`);
+          notifyUI();
+          return;
+        }
+        switch (resolved) {
+          case "right": return handleMove(1,  0);
+          case "left":  return handleMove(-1, 0);
+          case "up":    return handleMove(0, -1);
+          case "down":  return handleMove(0,  1);
+        }
+        return;
+      }
       case "plant":   return handlePlant(command.args);
       case "harvest": return handleHarvest();
       default:
