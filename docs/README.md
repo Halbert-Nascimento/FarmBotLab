@@ -26,7 +26,7 @@ O codigo do jogador roda dentro de uma sandbox ES5 (`js-interpreter 6.0.1`). A c
 
 | Canal | Tipo | Fluxo | Exemplo |
 |---|---|---|---|
-| **Canal 1 — Acoes** | void, assincrono | `sandbox -> actionQueue -> onAction -> gameController.executeAction()` | `moverDireita()`, `plantar("capim")` |
+| **Canal 1 — Acoes** | void, assincrono | `sandbox -> actionQueue -> onAction -> gameController.executeAction()` | `mover("direita")`, `plantar("capim")` |
 | **Canal 2 — Sensores** | retorna valor, sincrono | `sandbox -> onQuery -> gameController.queryState() -> nativeToPseudo()` | `obterCultura()`, `posicaoX()` |
 
 ### Diagrama de Modulos
@@ -60,10 +60,10 @@ Comandos entram na fila de acoes. Cada um espera a animacao 3D completar antes d
 
 | Comando (PT-BR) | Alias (EN) | Descricao |
 |---|---|---|
-| `moverDireita()` | `moveRight()` | Move o drone uma celula para a direita (+X) |
-| `moverEsquerda()` | `moveLeft()` | Move uma celula para a esquerda (-X) |
-| `moverCima()` | `moveUp()` | Move uma celula para cima (-Y) |
-| `moverBaixo()` | `moveDown()` | Move uma celula para baixo (+Y) |
+| `mover("direita")` | `move("right")` | Move o drone uma celula para a direita (+X) |
+| `mover("esquerda")` | `move("left")` | Move uma celula para a esquerda (-X) |
+| `mover("cima")` | `move("up")` | Move uma celula para cima (-Y) |
+| `mover("baixo")` | `move("down")` | Move uma celula para baixo (+Y) |
 
 **Comportamento de borda**: ao tentar sair do grid, o drone nao se move e o log exibe "Bateu na borda da fazenda".
 
@@ -117,7 +117,7 @@ if (cultura === "capim") {
 var largura = tamanhoCampoX();
 for (var x = 0; x < largura - 1; x = x + 1) {
   plantar("trigo");
-  moverDireita();
+  mover("direita");
 }
 plantar("trigo");
 ```

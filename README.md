@@ -39,7 +39,7 @@ O codigo do jogador roda dentro de uma sandbox ES5 (`js-interpreter`) e se comun
 ```
 Codigo do Jogador (sandbox ES5)
         |
-        |-- moverDireita()  -->  Canal 1: actionQueue (void, assincrono)
+        |-- mover("direita")  -->  Canal 1: actionQueue (void, assincrono)
         |                         programRunner --> gameController.executeAction()
         |                         Executa acao no mundo + anima no Three.js
         |
@@ -50,7 +50,7 @@ Codigo do Jogador (sandbox ES5)
 
 ### Canal 1 — Acoes (void, assincrono)
 
-Comandos como `moverDireita()` e `plantar("capim")` entram em uma fila (`actionQueue`). O loop principal do runner processa um comando por vez, aguardando a animacao 3D antes de continuar a execucao do script.
+Comandos como `mover("direita")` e `plantar("capim")` entram em uma fila (`actionQueue`). O loop principal do runner processa um comando por vez, aguardando a animacao 3D antes de continuar a execucao do script.
 
 ### Canal 2 — Sensores (retorno sincrono)
 
@@ -97,9 +97,9 @@ Abra `http://localhost:5500` no navegador.
 ### Primeiro Script
 
 ```javascript
-moverDireita();
+mover("direita");
 plantar("capim");
-moverBaixo();
+mover("baixo");
 colher();
 ```
 
@@ -122,13 +122,13 @@ for (var y = 0; y < altura; y = y + 1) {
       plantar("capim");
     }
     if (x < largura - 1) {
-      moverDireita();
+      mover("direita");
     }
   }
   if (y < altura - 1) {
-    moverBaixo();
+    mover("baixo");
     for (var voltar = 0; voltar < largura - 1; voltar = voltar + 1) {
-      moverEsquerda();
+      mover("esquerda");
     }
   }
 }
@@ -142,10 +142,10 @@ for (var y = 0; y < altura; y = y + 1) {
 
 | PT-BR | EN | Descricao |
 |---|---|---|
-| `moverDireita()` | `moveRight()` | Move o drone uma celula para a direita |
-| `moverEsquerda()` | `moveLeft()` | Move para a esquerda |
-| `moverCima()` | `moveUp()` | Move para cima |
-| `moverBaixo()` | `moveDown()` | Move para baixo |
+| `mover("direita")` | `move("right")` | Move o drone uma celula para a direita |
+| `mover("esquerda")` | `move("left")` | Move para a esquerda |
+| `mover("cima")` | `move("up")` | Move para cima |
+| `mover("baixo")` | `move("down")` | Move para baixo |
 | `plantar("tipo")` | `plant("tipo")` | Planta na celula atual (capim, trigo, milho, arvore, girasol, morango) |
 | `colher()` | `harvest()` | Colhe o que esta na celula atual |
 
