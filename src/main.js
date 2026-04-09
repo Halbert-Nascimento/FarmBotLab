@@ -19,13 +19,13 @@ const CROP_GROWTH_SETTINGS = {
 };
 
 const DEFAULT_CODE = `
-  moverDireita();
+  mover("direita");
   plantar("arvore");
-  moverBaixo();
+  mover("baixo");
   plantar("arvore");
-  moverBaixo();
+  mover("baixo");
   plantar("capim");
-  moverDireita();
+  mover("direita");
   colher();
 `;
 
