@@ -164,7 +164,7 @@ function renderMissionHelp(mission, compact = false) {
 
 function featureLabel(feature) {
   const labels = {
-    "api.move": "Movimento: moverDireita/moverEsquerda/moverCima/moverBaixo",
+    "api.move": 'Movimento: mover("direita"/"esquerda"/"cima"/"baixo")',
     "api.plant": "Plantio: plantar(tipo)",
     "api.harvest": "Colheita: colher()",
     "lang.if": "Condicionais: if / else",
