@@ -1045,7 +1045,8 @@ export function createGamePhases({
     if (type === "harvest") {
       stats.harvests += 1;
       const cropType = payload.cropType || "generic";
-      stats.itemsByType[cropType] = (stats.itemsByType[cropType] || 0) + 1;
+      const qty = Number.isFinite(payload.quantity) && payload.quantity > 0 ? payload.quantity : 1;
+      stats.itemsByType[cropType] = (stats.itemsByType[cropType] || 0) + qty;
     }
 
     processProgress("event");
@@ -1626,5 +1627,6 @@ export function createGamePhases({
     resetProgress,
     getFullState,
     restoreState,
+    getPurchasedUpgradeIds: () => Array.from(purchasedWorldUpgradeIds),
   };
 }

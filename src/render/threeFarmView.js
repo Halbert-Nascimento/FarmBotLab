@@ -786,7 +786,7 @@ export function createThreeFarmView({
     avatar.group.position.y = avatar.heightOffset;
   }
 
-  function animateMove(from, to) {
+  function animateMove(from, to, duration) {
     if (!renderer) {
       syncBotPosition(to);
       return Promise.resolve();
@@ -794,11 +794,12 @@ export function createThreeFarmView({
 
     const fromWorld = gridToWorld(from.x, from.y, currentGridWidth, currentGridHeight);
     const toWorld = gridToWorld(to.x, to.y, currentGridWidth, currentGridHeight);
+    const safeDuration = typeof duration === "number" && duration > 0 ? duration : 360;
 
     return new Promise((resolve) => {
       currentAnimation = {
         start: performance.now(),
-        duration: 360,
+        duration: safeDuration,
         resolve,
         from: fromWorld,
         to: toWorld,

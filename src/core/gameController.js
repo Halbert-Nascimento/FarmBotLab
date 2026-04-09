@@ -92,7 +92,8 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
     const result = world.moveBy(dx, dy);
     if (result.moved) {
       gamePhases.recordEvent("move");
-      await view.animateMove(result.from, result.to);
+      const { droneMoveDuration } = getModifiers();
+      await view.animateMove(result.from, result.to, droneMoveDuration);
       log(`Moveu para (${result.to.x}, ${result.to.y})`);
     } else {
       log("Bateu na borda da fazenda");
@@ -100,8 +101,7 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
     notifyUI();
   }
 
-  // Tempo de maturidade (em ms) por tipo de cultura.
-  // Quando upgrades de velocidade forem implementados, alimentar via gamePhases.
+  // Tempo de maturidade BASE (em ms) por tipo de cultura (sem upgrades).
   const CROP_MATURITY_MS = {
     capim:    15000,
     trigo:    20000,
@@ -110,6 +110,76 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
     girasol:  18000,
     morango:  22000,
   };
+
+  // Duração BASE de movimento do drone em ms (sem upgrades).
+  const DRONE_MOVE_BASE_MS = 360;
+
+  // ─── sistema de modificadores dinâmicos ───────────────────────────────────
+  //
+  // Percorre os IDs de upgrades comprados e calcula multiplicadores ativos.
+  //
+  // Padrões de ID relevantes:
+  //   upg.crop.{cropId}.growth.speed.t{N}  → reduz tempo de maturidade
+  //   upg.crop.{cropId}.yield.t{N}         → aumenta itens por colheita
+  //   upg.drone.move.speed.t{N}            → reduz duração de animateMove
+  //   upg.drone.work.speed.t{N}            → (reservado para futuras animações de trabalho)
+  //
+  // Fórmulas:
+  //   Crescimento: fator = 1 + N × 0.15  → maturity / fator  (15% mais rápido por tier)
+  //   Yield:       quantidade = N         → N itens na colheita (tier 0 = base 1)
+  //   Drone move:  fator = 1 + N × 0.20  → DRONE_MOVE_BASE_MS / fator (20% mais rápido por tier)
+
+  function getModifiers() {
+    const purchased = gamePhases.getPurchasedUpgradeIds();
+
+    // Tiers máximos por categoria (evita duplicar tiers inferiores já incluídos)
+    const growthTier  = {};   // { capim: 3, trigo: 1, ... }
+    const yieldTier   = {};   // { capim: 2, ... }
+    let droneMoveTier = 0;
+    let droneWorkTier = 0;
+
+    const CROP_GROWTH_PATTERN = /^upg\.crop\.(\w+)\.growth\.speed\.t(\d+)$/;
+    const CROP_YIELD_PATTERN  = /^upg\.crop\.(\w+)\.yield\.t(\d+)$/;
+    const DRONE_MOVE_PATTERN  = /^upg\.drone\.move\.speed\.t(\d+)$/;
+    const DRONE_WORK_PATTERN  = /^upg\.drone\.work\.speed\.t(\d+)$/;
+
+    for (const id of purchased) {
+      let m;
+      if ((m = CROP_GROWTH_PATTERN.exec(id))) {
+        const [, crop, t] = m;
+        const tier = parseInt(t, 10);
+        if (!growthTier[crop] || tier > growthTier[crop]) growthTier[crop] = tier;
+      } else if ((m = CROP_YIELD_PATTERN.exec(id))) {
+        const [, crop, t] = m;
+        const tier = parseInt(t, 10);
+        if (!yieldTier[crop] || tier > yieldTier[crop]) yieldTier[crop] = tier;
+      } else if ((m = DRONE_MOVE_PATTERN.exec(id))) {
+        const tier = parseInt(m[1], 10);
+        if (tier > droneMoveTier) droneMoveTier = tier;
+      } else if ((m = DRONE_WORK_PATTERN.exec(id))) {
+        const tier = parseInt(m[1], 10);
+        if (tier > droneWorkTier) droneWorkTier = tier;
+      }
+    }
+
+    // Fator de velocidade de movimento: 1 + tier × 0.20
+    const droneMoveSpeed = 1 + droneMoveTier * 0.20;
+
+    // Duração real da animação de movimento (ms): base / fator
+    const droneMoveDuration = Math.round(DRONE_MOVE_BASE_MS / droneMoveSpeed);
+
+    // Por cultura: fator de crescimento e yield final
+    const cropGrowthFactor = {};
+    const cropYield        = {};
+
+    for (const crop of Object.keys(CROP_MATURITY_MS)) {
+      cropGrowthFactor[crop] = 1 + (growthTier[crop] || 0) * 0.15;
+      // yield = tier comprado (tier 0 sem upgrade = 1 item)
+      cropYield[crop] = (yieldTier[crop] || 0) > 0 ? yieldTier[crop] : 1;
+    }
+
+    return { droneMoveDuration, droneWorkTier, cropGrowthFactor, cropYield };
+  }
 
   // ─── validações de plantio ────────────────────────────────────────────────
 
@@ -194,8 +264,14 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
         ? result.harvestedCrop.type
         : "generic";
 
-    // Verificar maturidade pelo timestamp real
-    const maturityMs = CROP_MATURITY_MS[cropType] || 15000;
+    // Consulta modificadores ativos para esta colheita
+    const { cropGrowthFactor, cropYield } = getModifiers();
+
+    // Tempo de maturidade ajustado pelo upgrade de velocidade de crescimento
+    const baseMaturity = CROP_MATURITY_MS[cropType] || 15000;
+    const growthFactor = cropGrowthFactor[cropType] || 1;
+    const maturityMs   = Math.round(baseMaturity / growthFactor);
+
     const plantedAt = result.harvestedCrop && result.harvestedCrop.plantedAt
       ? result.harvestedCrop.plantedAt
       : 0;
@@ -204,11 +280,13 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
     view.setCrop(result.x, result.y, null);
 
     if (isRipe) {
-      gamePhases.recordEvent("harvest", { cropType });
-      log(`Colheu ${cropType} em (${result.x}, ${result.y})`);
+      const quantity = cropYield[cropType] || 1;
+      gamePhases.recordEvent("harvest", { cropType, quantity });
+      const yieldLabel = quantity > 1 ? ` (×${quantity})` : "";
+      log(`Colheu ${cropType}${yieldLabel} em (${result.x}, ${result.y})`);
     } else {
-      // Colheita imatura: planta é removida mas item não entra no inventário
-      log(`⚠️ A cultura ainda não amadureceu! Você perdeu a semente.`);
+      const remaining = Math.ceil((maturityMs - (Date.now() - plantedAt)) / 1000);
+      log(`⚠️ A cultura ainda não amadureceu! Você perdeu a semente. (faltam ~${remaining}s)`);
     }
 
     notifyUI();
@@ -268,7 +346,10 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
       case "isRipe": {
         const crop = snapshot.crops.find(function (c) { return c.x === pos.x && c.y === pos.y; });
         if (!crop) return false;
-        var maturityMs = CROP_MATURITY_MS[crop.crop.type] || 15000;
+        var mods = getModifiers();
+        var baseMs = CROP_MATURITY_MS[crop.crop.type] || 15000;
+        var factor = (mods.cropGrowthFactor && mods.cropGrowthFactor[crop.crop.type]) || 1;
+        var maturityMs = Math.round(baseMs / factor);
         var plantedAt = crop.crop.plantedAt || 0;
         return (Date.now() - plantedAt) >= maturityMs;
       }
