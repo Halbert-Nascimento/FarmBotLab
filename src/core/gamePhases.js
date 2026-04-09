@@ -113,8 +113,8 @@ export const NODE_LESSONS_V1 = {
   n01_movimento: {
     topic: "Sequencia de instrucoes",
     summary: "Codigo e uma lista de comandos executados de cima para baixo.",
-    syntax: 'moverDireita();\nmoverBaixo();',
-    example: 'moverDireita();\nmoverDireita();\nmoverBaixo();',
+    syntax: 'mover("direita");\nmover("baixo");',
+    example: 'mover("direita");\nmover("direita");\nmover("baixo");',
     hints: [
       "Cada comando precisa terminar com ;",
       "Use Executar para rodar o script inteiro.",
@@ -124,7 +124,7 @@ export const NODE_LESSONS_V1 = {
     topic: "Funcoes de acao",
     summary: "plantar(tipo) executa uma acao no bloco atual.",
     syntax: 'plantar("capim");',
-    example: 'moverDireita();\nplantar("capim");',
+    example: 'mover("direita");\nplantar("capim");',
     hints: [
       "Tipo de cultura e texto entre aspas.",
       "Voce precisa estar na celula alvo antes de plantar.",
@@ -134,7 +134,7 @@ export const NODE_LESSONS_V1 = {
     topic: "Ciclo basico",
     summary: "Uma rotina simples e mover, plantar e depois colher.",
     syntax: 'plantar("capim");\ncolher();',
-    example: 'moverBaixo();\nplantar("capim");\ncolher();',
+    example: 'mover("baixo");\nplantar("capim");\ncolher();',
     hints: [
       "colher() so conta se havia cultura na celula.",
       "Monte sequencias curtas e teste com frequencia.",
@@ -144,7 +144,7 @@ export const NODE_LESSONS_V1 = {
     topic: "Condicionais (if)",
     summary: "if permite escolher entre dois caminhos.",
     syntax: 'var energia = 1;\nif (energia > 0) {\n  plantar("capim");\n} else {\n  colher();\n}',
-    example: 'var devePlantar = 1;\nif (devePlantar === 1) {\n  plantar("trigo");\n} else {\n  moverDireita();\n}',
+    example: 'var devePlantar = 1;\nif (devePlantar === 1) {\n  plantar("trigo");\n} else {\n  mover("direita");\n}',
     hints: [
       "Use === para comparar igualdade.",
       "Blocos de if/else usam chaves { }.",
@@ -153,8 +153,8 @@ export const NODE_LESSONS_V1 = {
   n05_loop_while: {
     topic: "Loop while",
     summary: "while repete enquanto a condicao for verdadeira.",
-    syntax: 'var i = 0;\nwhile (i < 3) {\n  moverDireita();\n  i = i + 1;\n}',
-    example: 'var passos = 0;\nwhile (passos < 2) {\n  plantar("capim");\n  moverBaixo();\n  passos = passos + 1;\n}',
+    syntax: 'var i = 0;\nwhile (i < 3) {\n  mover("direita");\n  i = i + 1;\n}',
+    example: 'var passos = 0;\nwhile (passos < 2) {\n  plantar("capim");\n  mover("baixo");\n  passos = passos + 1;\n}',
     hints: [
       "Atualize a variavel de controle dentro do loop.",
       "Sem atualizar a variavel, o loop pode travar.",
@@ -164,7 +164,7 @@ export const NODE_LESSONS_V1 = {
     topic: "Loop for",
     summary: "for e ideal para repetir um numero fixo de vezes.",
     syntax: 'for (var i = 0; i < 5; i = i + 1) {\n  colher();\n}',
-    example: 'for (var i = 0; i < 4; i = i + 1) {\n  plantar("trigo");\n  moverDireita();\n}',
+    example: 'for (var i = 0; i < 4; i = i + 1) {\n  plantar("trigo");\n  mover("direita");\n}',
     hints: [
       "No runtime atual, prefira var em loops.",
       "i = i + 1 e o incremento mais compativel.",
@@ -173,8 +173,8 @@ export const NODE_LESSONS_V1 = {
   n07_funcoes: {
     topic: "Criacao de funcoes",
     summary: "Funcoes agrupam passos repetidos em um nome.",
-    syntax: 'function plantarLinha() {\n  plantar("capim");\n  moverDireita();\n}\nplantarLinha();',
-    example: 'function passo() {\n  moverBaixo();\n  plantar("capim");\n}\npasso();\npasso();',
+    syntax: 'function plantarLinha() {\n  plantar("capim");\n  mover("direita");\n}\nplantarLinha();',
+    example: 'function passo() {\n  mover("baixo");\n  plantar("capim");\n}\npasso();\npasso();',
     hints: [
       "Defina com function nome() { ... }.",
       "Chame a funcao com nome().",
@@ -203,8 +203,8 @@ export const NODE_LESSONS_V1 = {
   n10_estrategia: {
     topic: "Planejamento de rota",
     summary: "Organize movimentos para reduzir passos desperdicados.",
-    syntax: 'for (var i = 0; i < 3; i = i + 1) {\n  moverDireita();\n  plantar("capim");\n}',
-    example: 'function fileira(n) {\n  for (var i = 0; i < n; i = i + 1) {\n    plantar("trigo");\n    moverDireita();\n  }\n}\nfileira(4);',
+    syntax: 'for (var i = 0; i < 3; i = i + 1) {\n  mover("direita");\n  plantar("capim");\n}',
+    example: 'function fileira(n) {\n  for (var i = 0; i < n; i = i + 1) {\n    plantar("trigo");\n    mover("direita");\n  }\n}\nfileira(4);',
     hints: [
       "Agrupe tarefas semelhantes em blocos.",
       "Evite ir e voltar sem necessidade.",
