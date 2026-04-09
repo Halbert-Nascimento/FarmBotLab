@@ -155,19 +155,23 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onDebug
       );
     };
 
+    // ── mover(direcao) — função parametrizada ──────────────────────────────
+    var fnMover = function (direcao) {
+      var dir = direcao && typeof direcao === "object" ? direcao.data : direcao;
+      actionQueue.push({ type: "move", args: [String(dir == null ? "" : dir)] });
+    };
+    interpreter.setProperty(
+      globalObject, "mover", interpreter.createNativeFunction(fnMover)
+    );
+    interpreter.setProperty(
+      globalObject, "move", interpreter.createNativeFunction(fnMover)
+    );
+
     // ── API de comando em pt-BR ─────────────────────────────────────────────
-    native("moverDireita", "right");
-    native("moverEsquerda", "left");
-    native("moverCima", "up");
-    native("moverBaixo", "down");
     native("plantar", "plant");
     native("colher", "harvest");
 
     // ── API de comando — aliases EN ─────────────────────────────────────────
-    native("moveRight", "right");
-    native("moveLeft", "left");
-    native("moveUp", "up");
-    native("moveDown", "down");
     native("plant", "plant");
     native("harvest", "harvest");
 
