@@ -41,7 +41,7 @@ flowchart TD
 | No | Nome | Ramo | Requisito de Abertura | Recompensa/Unlock |
 |---|---|---|---|---|
 | N01 | Movimento Inicial | fundamentos | Inicio do jogo | api.move |
-| N02 | Plantio Inicial | fundamentos | N01 completo | api.plant, crop.capim |
+| N02 | Plantio Inicial | fundamentos | N01 completo | api.plant, crop.capim, api.soil |
 | N03 | Colheita Inicial | fundamentos | N02 completo | api.harvest |
 | N04 | Decisao com If | logica | N03 completo | lang.if, comparacao basica |
 | N05 | Repeticao com While | logica | N04 completo | lang.while |
@@ -67,7 +67,9 @@ flowchart TD
 | Missao | Objetivo | Validacao |
 |---|---|---|
 | M03 Primeiro Plantio | Plante 3 culturas no total | plants >= 3 |
-| M04 Capim em Escala | Plante 2 unidades de capim | plantsByCrop.capim >= 2 |
+| M04 Capim em Escala | Plante 2 unidades de capim e prepare o solo | plantsByCrop.capim >= 2 |
+
+> **Desbloqueio:** ao concluir N02, a feature `api.soil` e liberada — `prepararSolo()` e `prepararSuperficie()` ficam disponiveis na sandbox.
 
 ### N03 Colheita Inicial
 
