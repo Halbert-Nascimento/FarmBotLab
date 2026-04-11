@@ -1,93 +1,151 @@
-// ===== TESTES DO BÁSICO JAVASCRIPT =====
-// Copie e cole cada teste NO EDITOR do FarmBot Lab e clique em Executar
+// ===== TESTES DO BÁSICO JAVASCRIPT — FarmBot Lab v1.1.0-beta =====
+// Copie e cole cada teste NO EDITOR do FarmBot Lab e clique em Executar.
+// Todos os testes usam mover("direcao") e console.log() para debug.
 
-// ►► TEST 1: Seu código CORRIGIDO (faltava inicializar i = 0)
-// Entre as linhas 2-8 do seu original, havia `for(leti i; i< 5; i++)` 
-// Deveria ser: `for(let i = 0; i < 5; i++)`
+// ►► TESTE 1: Loop For — Varredura basica com log
+// Percorre 5 ciclos: move, planta arvore, desce, planta arvore, desce, planta capim, move, colhe
 
-for(let i = 0; i < 5; i++){
-    moverDireita();
-    plantar("arvore");
-    moverBaixo();
-    plantar("arvore");
-    moverBaixo();
-    plantar("capim");
-    moverDireita();
-    colher();
+for (var i = 0; i < 5; i = i + 1) {
+  console.log("Ciclo:", i, "| Posicao:", posicaoX(), posicaoY());
+  mover("direita");
+  plantar("arvore");
+  mover("baixo");
+  plantar("arvore");
+  mover("baixo");
+  plantar("capim");
+  mover("direita");
+  colher();
 }
-
-// ✓ Esperado: Move direita, planta arvore, desce, planta arvore, desce, planta capim, move direita, colhe
-// Repete 5 vezes
+console.log("Teste 1 concluido. Capim coletado:", contarItem("capim"));
 
 
-// ►► TEST 2: Variáveis Simples
-let contador = 0;
-let alvo = 3;
-moverDireita();
-moverDireita();
-moverDireita();
+// ►► TESTE 2: Variaveis e Sensores
+// Demonstra leitura de posicao e dimensoes do campo
+
+var posX = posicaoX();
+var posY = posicaoY();
+var largura = tamanhoCampoX();
+var altura = tamanhoCampoY();
+
+console.log("Posicao inicial: x=" + posX + " y=" + posY);
+console.log("Campo:", largura, "x", altura);
+
+mover("direita");
+mover("direita");
+mover("direita");
+
+console.log("Posicao final: x=" + posicaoX() + " y=" + posicaoY());
 
 
-// ►► TEST 3: Loop While com Variável
-let passos = 0;
-while(passos < 4){
-    moverBaixo();
-    passos = passos + 1;
+// ►► TESTE 3: Loop While com Sensor de Posicao
+// Desce ate atingir y=3 ou bater na borda
+
+var passos = 0;
+while (passos < 4) {
+  mover("baixo");
+  passos = passos + 1;
+  console.log("Desceu para y=" + posicaoY());
 }
+console.log("Teste 3 finalizado. Posicao:", posicaoX(), posicaoY());
 
 
-// ►► TEST 4: If/Else Simples
-let numero = 2;
-if(numero > 1){
-    plantar("arvore");
+// ►► TESTE 4: If/Else com Sensor de Cultura
+// Planta ou colhe dependendo do que esta na celula
+
+var cultura = obterCultura();
+console.log("Cultura na celula atual:", cultura);
+
+if (cultura !== null && verificarMaturidade()) {
+  colher();
+  console.log("Colhido!");
+} else if (cultura === null) {
+  plantar("arvore");
+  console.log("Plantou arvore.");
 } else {
-    plantar("capim");
+  console.warn("Cultura imatura, aguardando:", cultura);
 }
 
 
-// ►► TEST 5: Função Simples (sem parâmetros)
-function moverDireita3(){
-    for(let i = 0; i < 3; i++){
-        moverDireita();
+// ►► TESTE 5: Funcao Simples com Debug
+// Define e chama uma funcao que move 3 vezes para a direita logando cada passo
+
+function moverDireita3() {
+  for (var i = 0; i < 3; i = i + 1) {
+    mover("direita");
+    console.info("Passo", i + 1, "| x=" + posicaoX());
+  }
+}
+
+moverDireita3();
+console.log("Teste 5 concluido. Posicao final x=" + posicaoX());
+
+
+// ►► TESTE 6: Funcao com Parametros e Sensor
+// Funcao que move N vezes em qualquer direcao e loga o trajeto
+
+function moverNVezes(direcao, vezes) {
+  console.log("Movendo", vezes, "vezes para:", direcao);
+  for (var i = 0; i < vezes; i = i + 1) {
+    mover(direcao);
+  }
+  console.log("Chegou em:", posicaoX(), posicaoY());
+}
+
+moverNVezes("direita", 2);
+moverNVezes("baixo", 2);
+
+
+// ►► TESTE 7: Funcao que Planta com Log de Solo
+// Planta N vezes descendo e loga o solo de cada celula
+
+function plantarNVezes(tipo, vezes) {
+  for (var i = 0; i < vezes; i = i + 1) {
+    var solo = obterSolo();
+    console.log("Celula", i, "| Solo:", solo, "| Plantando:", tipo);
+    plantar(tipo);
+    if (i < vezes - 1) { mover("baixo"); }
+  }
+}
+
+plantarNVezes("capim", 3);
+console.log("Inventario capim:", contarItem("capim"));
+
+
+// ►► TESTE 8: Combinado — Funcao + Loop + Condicional + Sensores
+// Estrategia adaptativa: planta arvore na primeira celula, capim nas demais;
+// se ja houver cultura madura, colhe em vez de plantar
+
+function estrategia() {
+  var plantado = 0;
+  var largura = tamanhoCampoX();
+
+  console.log("Iniciando estrategia. Campo:", largura, "colunas");
+
+  while (plantado < largura) {
+    var c = obterCultura();
+    var x = posicaoX();
+
+    if (c !== null && verificarMaturidade()) {
+      colher();
+      console.log("Colheu", c, "em x=" + x);
+    } else if (c === null) {
+      if (plantado === 0) {
+        plantar("arvore");
+        console.log("Plantou arvore em x=" + x);
+      } else {
+        plantar("capim");
+        console.log("Plantou capim em x=" + x);
+      }
+    } else {
+      console.warn("Imatura em x=" + x + ":", c);
     }
+
+    plantado = plantado + 1;
+    if (plantado < largura) { mover("direita"); }
+  }
+
+  console.log("Estrategia concluida.");
+  console.log("Capim:", contarItem("capim"), "| Arvore:", contarItem("arvore"));
 }
 
-moverDireita3();  // Chama a função
-
-
-// ►► TEST 6: Função com Parâmetros
-function moverNVezes(vezes){
-    for(let i = 0; i < vezes; i++){
-        moverDireita();
-    }
-}
-
-moverNVezes(2);  // Move 2 vezes
-
-
-// ►► TEST 7: Função que Planta
-function plantarNVezes(tipo, vezes){
-    for(let i = 0; i < vezes; i++){
-        plantar(tipo);
-        moverBaixo();
-    }
-}
-
-plantarNVezes("capim", 3);  // Planta capim 3 vezes descendo
-
-
-// ►► TEST 8: Combinado - Função + Loop + Condição
-function estrategia(){
-    let plantado = 0;
-    while(plantado < 2){
-        if(plantado === 0){
-            plantar("arvore");
-        } else {
-            plantar("capim");
-        }
-        moverBaixo();
-        plantado = plantado + 1;
-    }
-}
-
-estrategia();  // Executa a estratégia
+estrategia();
