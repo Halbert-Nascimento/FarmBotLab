@@ -132,36 +132,63 @@ for (var i = 0; i < largura; i = i + 1) {
 
 ---
 
-## 4. Comandos de Terras (console do navegador)
+## 4. API de Solo — Referencia Cruzada PT/EN
 
-Tipos de terra e superficie sao ajustados via API de visualizacao (`view`), no console do navegador (F12).
+A preparacao de solo agora e feita **diretamente no editor**, seguindo o mesmo padrao de `mover()`.
 
-### 4.1 Tipos de terra disponiveis
+### 4.1 Funcoes disponiveis na sandbox
 
-- `loam` — aceito pela maioria das culturas
-- `clay` — aceito por trigo, milho, girasol
-- `sandy-loam` — aceito por milho, girasol, morango
-- `peat`
-- `silt`
+| Funcao PT-BR | Funcao EN | Descricao |
+|---|---|---|
+| `prepararSolo("tipo")` | `prepareSoil("type")` | Altera o tipo de solo da celula atual |
+| `prepararSuperficie("tipo")` | `prepareSurface("type")` | Altera a superficie da celula atual |
 
-### 4.2 Superficies disponiveis
+### 4.2 Tabela De/Para — Tipos de Solo
 
-- `pure`
-- `tilled`
+| PT-BR | EN | Nome interno | Culturas compativeis |
+|-------|----|----|---|
+| `"barro"` | `"loam"` | `loam` | todas |
+| `"argila"` | `"clay"` | `clay` | trigo, milho, girasol |
+| `"lama"` | `"mud"` | `mud` | — (uso futuro) |
+| `"arenoso"` | `"sandy"` / `"sandy-loam"` | `sandy-loam` | milho, girasol, morango |
+| `"turfa"` | `"peat"` | `peat` | — (uso futuro) |
+| `"silte"` | `"silt"` | `silt` | — (uso futuro) |
 
-### 4.3 Comandos de teste de terra
+### 4.3 Tabela De/Para — Superficie
+
+| PT-BR | EN | Nome interno |
+|-------|----|---|
+| `"puro"` | `"pure"` | `pure` |
+| `"arado"` | `"tilled"` | `tilled` |
+
+> As funcoes sao **case-insensitive**: `"Argila"`, `"ARGILA"` e `"argila"` sao equivalentes.
+
+### 4.4 Exemplos no editor
 
 ```javascript
-// Mudar tipo de terra em uma celula (x, y)
-view.setSoilType(0, 0, "clay");
-view.setSoilType(1, 0, "sandy-loam");
-view.setSoilType(2, 0, "peat");
-view.setSoilType(3, 0, "silt");
-view.setSoilType(4, 0, "loam");
+// Preparar solo antes de plantar
+prepararSolo("argila");
+plantar("trigo");
 
-// Mudar superficie em uma celula (x, y)
-view.setSoilSurface(0, 1, "pure");
-view.setSoilSurface(1, 1, "tilled");
+// Alias EN equivalente
+prepareSoil("clay");
+plant("trigo");
+
+// Verificar solo e decidir cultura
+var solo = obterSolo();
+console.log("Solo atual:", solo);
+if (solo === "loam") {
+  plantar("arvore");
+} else if (solo === "clay") {
+  plantar("trigo");
+} else {
+  prepararSolo("barro");
+  plantar("capim");
+}
+
+// Preparar superficie
+prepararSuperficie("arado");
+plantar("trigo");
 ```
 
 ---
