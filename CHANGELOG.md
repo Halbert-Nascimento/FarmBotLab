@@ -6,6 +6,24 @@ Versionamento segue [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0-beta] — 2026-04-11
+
+### Adicionado
+
+- **API de Solo bilíngue** — `prepararSolo()` / `prepareSoil()` e `prepararSuperficie()` / `prepareSurface()` disponíveis na sandbox
+  - Aceita nomes em PT-BR e EN, case-insensitive
+  - `prepararSolo("argila")` ≡ `prepareSoil("clay")`, `prepararSolo("barro")` ≡ `prepareSoil("loam")`, etc.
+  - `prepararSuperficie("arado")` ≡ `prepareSurface("tilled")`
+  - Mensagens de erro e log 100% em PT-BR
+  - Feature `api.soil` desbloqueada no nó `n02_plantio` da árvore de missões
+  - Implementado via Canal 1 (void/async) — segue exatamente o padrão de `mover()`
+
+- **Mapeamentos internos** em `gameController.js`:
+  - `SOIL_TYPE_MAP`: barro→loam, argila→clay, lama→mud, arenoso→sandy-loam, turfa→peat, silte→silt (+ aliases EN)
+  - `SURFACE_MAP`: puro→pure, arado→tilled (+ aliases EN)
+
+---
+
 ## [1.1.0-beta] — 2026-04-11
 
 ### Adicionado
