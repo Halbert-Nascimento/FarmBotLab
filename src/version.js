@@ -7,7 +7,7 @@
 
 export const VERSION = {
   major: 1,
-  minor: 1,
+  minor: 2,
   patch: 0,
   stage: "beta",
 
@@ -21,4 +21,4 @@ export const VERSION = {
 };
 
 export const BUILD_DATE = "2026-04-11";
-export const LAST_UPDATED = "2026-04-11";
+export const LAST_UPDATED = "2026-04-11"; // v1.2.0: API de Solo

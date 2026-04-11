@@ -149,3 +149,39 @@ function estrategia() {
 }
 
 estrategia();
+
+
+// ►► TESTE 9: API de Solo — Script Híbrido PT/EN
+// Demonstra prepararSolo() (PT) e prepareSurface() (EN) em loops separados.
+// Primeira linha: prepara solo com alias PT-BR em um loop for.
+// Segunda linha: prepara superficie com alias EN em outro loop while.
+
+console.log("=== Teste 9: API de Solo Bilíngue ===");
+
+// Loop 1 (PT-BR): prepara cada celula da linha 0 com solo alternado
+var larguraCampo = tamanhoCampoX();
+for (var col = 0; col < larguraCampo; col = col + 1) {
+  var tipoSolo = col % 2 === 0 ? "barro" : "argila";
+  prepararSolo(tipoSolo);
+  console.log("Solo preparado:", obterSolo(), "em x=" + posicaoX());
+  plantar("capim");
+  if (col < larguraCampo - 1) { mover("direita"); }
+}
+
+// Volta para o inicio
+for (var v = 0; v < larguraCampo - 1; v = v + 1) {
+  mover("esquerda");
+}
+mover("baixo");
+
+// Loop 2 (EN): prepara superficie alternando pure/tilled
+var colAtual = 0;
+while (colAtual < larguraCampo) {
+  var sup = colAtual % 2 === 0 ? "pure" : "tilled";
+  prepareSurface(sup);
+  console.info("Superficie:", sup, "em x=" + posicaoX());
+  if (colAtual < larguraCampo - 1) { mover("direita"); }
+  colAtual = colAtual + 1;
+}
+
+console.log("Teste 9 concluido. Capim plantado na linha 0.");
