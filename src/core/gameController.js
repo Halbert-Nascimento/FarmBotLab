@@ -12,10 +12,14 @@
 // Apenas tipos despachados internamente pelo executeAction ou pelo programRunner.
 const COMMAND_ALIASES = {
   // Ações
-  plant:   "plant",
-  plantar: "plant",
-  harvest: "harvest",
-  colher:  "harvest",
+  plant:              "plant",
+  plantar:            "plant",
+  harvest:            "harvest",
+  colher:             "harvest",
+  prepararSolo:       "setSoilType",
+  prepareSoil:        "setSoilType",
+  prepararSuperficie: "setSurface",
+  prepareSurface:     "setSurface",
 };
 
 // Direções válidas aceitas por mover(direcao) e seus tipos internos.
@@ -51,6 +55,35 @@ const CROP_LABELS = {
   girasol: "Girassol",
   morango: "Morango",
   generic: "Cultura",
+};
+
+// Mapeamento de tipos de solo: aliases PT/EN (case-insensitive) → nome interno.
+const SOIL_TYPE_MAP = {
+  // PT-BR
+  barro:    "loam",
+  argila:   "clay",
+  lama:     "mud",
+  arenoso:  "sandy-loam",
+  turfa:    "peat",
+  silte:    "silt",
+  // EN
+  loam:     "loam",
+  clay:     "clay",
+  mud:      "mud",
+  sandy:    "sandy-loam",
+  "sandy-loam": "sandy-loam",
+  peat:     "peat",
+  silt:     "silt",
+};
+
+// Mapeamento de superfícies: aliases PT/EN → nome interno.
+const SURFACE_MAP = {
+  // PT-BR
+  puro:    "pure",
+  arado:   "tilled",
+  // EN
+  pure:    "pure",
+  tilled:  "tilled",
 };
 
 // Solos compatíveis por cultura.
@@ -296,6 +329,52 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
     notifyUI();
   }
 
+  // ─── handlers de solo ───────────────────────────────────────────────────────
+
+  function handleSetSoilType(args) {
+    const raw = Array.isArray(args) && args.length > 0 ? args[0] : null;
+    const str = typeof raw === "string" ? raw.trim().toLowerCase() : null;
+    if (!str) {
+      log("prepararSolo: informe o tipo de solo. Ex: prepararSolo(\"argila\")");
+      notifyUI();
+      return;
+    }
+    const resolved = SOIL_TYPE_MAP[str];
+    if (!resolved) {
+      const valid = Object.keys(SOIL_TYPE_MAP).join(", ");
+      log(`❌ Tipo de solo desconhecido: "${str}". Tipos válidos: ${valid}`);
+      notifyUI();
+      return;
+    }
+    const snapshot = world.getSnapshot();
+    const pos = snapshot.position;
+    world.updateSoilAt(pos.x, pos.y, { type: resolved });
+    log(`Solo preparado: ${resolved} em (${pos.x}, ${pos.y})`);
+    notifyUI();
+  }
+
+  function handleSetSurface(args) {
+    const raw = Array.isArray(args) && args.length > 0 ? args[0] : null;
+    const str = typeof raw === "string" ? raw.trim().toLowerCase() : null;
+    if (!str) {
+      log("prepararSuperficie: informe o tipo. Ex: prepararSuperficie(\"arado\")");
+      notifyUI();
+      return;
+    }
+    const resolved = SURFACE_MAP[str];
+    if (!resolved) {
+      const valid = Object.keys(SURFACE_MAP).join(", ");
+      log(`❌ Superfície desconhecida: "${str}". Opções válidas: ${valid}`);
+      notifyUI();
+      return;
+    }
+    const snapshot = world.getSnapshot();
+    const pos = snapshot.position;
+    world.updateSoilAt(pos.x, pos.y, { extra: { surface: resolved } });
+    log(`Superfície preparada: ${resolved} em (${pos.x}, ${pos.y})`);
+    notifyUI();
+  }
+
   // ─── dispatcher principal ────────────────────────────────────────────────────
 
   /**
@@ -331,8 +410,10 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
         }
         return;
       }
-      case "plant":   return handlePlant(command.args);
-      case "harvest": return handleHarvest();
+      case "plant":        return handlePlant(command.args);
+      case "harvest":      return handleHarvest();
+      case "setSoilType":  return handleSetSoilType(command.args);
+      case "setSurface":   return handleSetSurface(command.args);
       default:
         log(`Ação desconhecida: ${command.type}`);
     }
