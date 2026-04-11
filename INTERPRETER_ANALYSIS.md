@@ -57,9 +57,11 @@ mover("baixo")      // Canal 1 — move +1 no eixo Y
 ### 2.2 Acoes
 
 ```javascript
-plantar("tipo")     // Canal 1 — planta cultura com validacoes
-colher()            // Canal 1 — colhe com verificacao de maturidade
-// Aliases EN: plant("tipo"), harvest()
+plantar("tipo")           // Canal 1 — planta cultura com validacoes
+colher()                  // Canal 1 — colhe com verificacao de maturidade
+prepararSolo("tipo")      // Canal 1 — altera tipo de solo da celula atual
+prepararSuperficie("tipo") // Canal 1 — altera superficie da celula atual
+// Aliases EN: plant(), harvest(), prepareSoil(), prepareSurface()
 ```
 
 ### 2.3 Sensores (Canal 2 — Retorno Sincrono)
@@ -95,7 +97,45 @@ console.error(...)  // → [ERRO]  — saida em vermelho
 - Objetos/arrays exibidos via `JSON.stringify(valor, null, 2)`
 - Nenhuma mensagem vaza para o F12 do navegador
 
-### 2.5 Estrutura de Acao Interna (Canal 1)
+### 2.5 Tecnica de Aliasing Bilingue
+
+Todas as funcoes de acao seguem o mesmo padrao de compatibilidade PT/EN. A tecnica tem tres camadas:
+
+**Camada 1 — Registro duplo em `programRunner.js`:**
+```javascript
+native("prepararSolo",       "setSoilType");  // PT-BR
+native("prepareSoil",        "setSoilType");  // EN
+native("prepararSuperficie", "setSurface");   // PT-BR
+native("prepareSurface",     "setSurface");   // EN
+```
+Ambos os nomes de funcao enfileiram o mesmo `type` interno — zero duplicacao de logica.
+
+**Camada 2 — `COMMAND_ALIASES` em `gameController.js`:**
+```javascript
+const COMMAND_ALIASES = {
+  prepararSolo:       "setSoilType",
+  prepareSoil:        "setSoilType",
+  prepararSuperficie: "setSurface",
+  prepareSurface:     "setSurface",
+  // ... outros
+};
+```
+Garante que chamadas externas (ex: `executeAction("prepararSolo")`) sejam resolvidas corretamente mesmo sem passar pelo programRunner.
+
+**Camada 3 — Mapa de strings em `gameController.js`:**
+```javascript
+const SOIL_TYPE_MAP = {
+  barro: "loam", argila: "clay", lama: "mud", arenoso: "sandy-loam",
+  turfa: "peat", silte: "silt",
+  loam: "loam", clay: "clay", mud: "mud", "sandy-loam": "sandy-loam",
+  peat: "peat", silt: "silt",
+};
+```
+O argumento do jogador (ex: `"argila"`, `"CLAY"`) e normalizado via `.trim().toLowerCase()` antes de ser consultado no mapa. Isso garante case-insensitivity sem ramificacoes de if/else.
+
+**Resultado:** O jogador pode escrever `prepararSolo("ARGILA")`, `prepareSoil("clay")` ou `prepareSoil("Clay")` — todos resultam na mesma operacao interna sem nenhum codigo extra.
+
+### 2.6 Estrutura de Acao Interna (Canal 1)
 
 ```javascript
 // Comando move("direita") enfileira:
