@@ -170,10 +170,14 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onConso
     // ── API de comando em pt-BR ─────────────────────────────────────────────
     native("plantar", "plant");
     native("colher", "harvest");
+    native("prepararSolo", "setSoilType");
+    native("prepararSuperficie", "setSurface");
 
     // ── API de comando — aliases EN ─────────────────────────────────────────
     native("plant", "plant");
     native("harvest", "harvest");
+    native("prepareSoil", "setSoilType");
+    native("prepareSurface", "setSurface");
 
     // ── Sensores pt-BR ──────────────────────────────────────────────────────
     nativeWithReturn("obterCultura", "getCrop");
