@@ -291,6 +291,7 @@ const runner = createProgramRunner({
   onAction: performAction,
   onQuery: (query) => gameController.queryState(query),
   onLog: logger.append,
+  onConsoleLog: (text, level) => logger.appendStyled(text, level),
   onDebugError: debugAlert,
 });
 
