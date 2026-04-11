@@ -148,6 +148,33 @@ for (var y = 0; y < altura; y = y + 1) {
 | `mover("baixo")` | `move("down")` | Move para baixo |
 | `plantar("tipo")` | `plant("tipo")` | Planta na celula atual (capim, trigo, milho, arvore, girasol, morango) |
 | `colher()` | `harvest()` | Colhe o que esta na celula atual |
+| `prepararSolo("tipo")` | `prepareSoil("type")` | Altera o tipo de solo da celula atual |
+| `prepararSuperficie("tipo")` | `prepareSurface("type")` | Altera a superfície da celula atual |
+
+#### Referencia de Tipos de Solo e Superficie
+
+| PT-BR | EN | Nome interno |
+|-------|----|----|
+| `"barro"` | `"loam"` | `loam` |
+| `"argila"` | `"clay"` | `clay` |
+| `"lama"` | `"mud"` | `mud` |
+| `"arenoso"` | `"sandy"` / `"sandy-loam"` | `sandy-loam` |
+| `"turfa"` | `"peat"` | `peat` |
+| `"silte"` | `"silt"` | `silt` |
+| **Superficie** | | |
+| `"puro"` | `"pure"` | `pure` |
+| `"arado"` | `"tilled"` | `tilled` |
+
+Ambas as funcoes sao case-insensitive. Exemplos equivalentes:
+
+```javascript
+prepararSolo("argila");    // PT-BR
+prepareSoil("clay");       // EN
+prepararSolo("BARRO");     // maiusculas aceitas
+
+prepararSuperficie("arado");
+prepareSurface("tilled");
+```
 
 ### Sensores (Retornam Valores)
 
