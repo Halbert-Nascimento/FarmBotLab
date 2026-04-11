@@ -151,17 +151,63 @@ for (var y = 0; y < altura; y = y + 1) {
 
 ### Sensores (Retornam Valores)
 
+Sensores usam o Canal 2 (sincrono): o retorno e imediato e pode ser usado em variaveis e condicionais.
+
 | PT-BR | EN | Retorno | Descricao |
 |---|---|---|---|
-| `obterCultura()` | `getCrop()` | `string \| null` | Tipo de planta na celula atual |
-| `obterSolo()` | `getSoilType()` | `string` | Tipo de solo na celula atual |
-| `posicaoX()` | `getPosX()` | `number` | Coordenada X do drone |
-| `posicaoY()` | `getPosY()` | `number` | Coordenada Y do drone |
-| `verificarMaturidade()` | `isRipe()` | `boolean` | `true` se a planta esta pronta para colher |
-| `tamanhoCampoX()` | `getWorldWidth()` | `number` | Largura do campo (colunas) |
-| `tamanhoCampoY()` | `getWorldHeight()` | `number` | Altura do campo (linhas) |
-| `contarItem("tipo")` | `getItemCount("tipo")` | `number` | Quantidade do item no inventario |
-| `turnoAtual()` | `getCurrentTurn()` | `number` | Numero do turno atual |
+| `obterCultura()` | `getCrop()` | `string \| null` | Tipo de planta na celula atual (`"capim"`, `"trigo"`, etc.) ou `null` se vazia |
+| `obterSolo()` | `getSoilType()` | `string` | Tipo de solo na celula atual (`"loam"`, `"clay"`, `"sandy-loam"`, ...) |
+| `posicaoX()` | `getPosX()` | `number` | Coordenada X do drone (0 = esquerda) |
+| `posicaoY()` | `getPosY()` | `number` | Coordenada Y do drone (0 = topo) |
+| `verificarMaturidade()` | `isRipe()` | `boolean` | `true` se a planta esta pronta para colher (tempo de maturidade atingido) |
+| `tamanhoCampoX()` | `getWorldWidth()` | `number` | Largura do campo em colunas |
+| `tamanhoCampoY()` | `getWorldHeight()` | `number` | Altura do campo em linhas |
+| `contarItem("tipo")` | `getItemCount("tipo")` | `number` | Quantidade de um item no inventario |
+| `turnoAtual()` | `getCurrentTurn()` | `number` | Numero do turno atual da simulacao |
+
+#### Tempos de maturidade por cultura (base, sem upgrades)
+
+| Cultura | Tempo base |
+|---------|-----------|
+| `capim` | 15 s |
+| `trigo` | 20 s |
+| `girasol` | 18 s |
+| `morango` | 22 s |
+| `milho` | 25 s |
+| `arvore` | 40 s |
+
+> Upgrades de velocidade de crescimento reduzem esses tempos em 15% por tier.
+> Colher uma cultura imatura descarta a semente sem registro no inventario.
+
+### Debug — console no Script
+
+O objeto `console` esta disponivel na sandbox e redireciona todas as mensagens para o **Log de Execucao** da UI do jogo. Nenhuma mensagem vai para o console do navegador (F12).
+
+| Metodo | Prefixo | Cor |
+|--------|---------|-----|
+| `console.log(...)` | `[LOG]` | padrao |
+| `console.info(...)` | `[LOG]` | azul |
+| `console.warn(...)` | `[AVISO]` | amarelo |
+| `console.error(...)` | `[ERRO]` | vermelho |
+
+Aceita multiplos argumentos e converte objetos/arrays para JSON legivel:
+
+```javascript
+var x = posicaoX();
+var y = posicaoY();
+console.log("Posicao atual:", x, y);
+
+var cultura = obterCultura();
+if (cultura === null) {
+  console.warn("Celula vazia — plantando capim");
+  plantar("capim");
+} else if (verificarMaturidade()) {
+  console.log("Pronto para colher:", cultura);
+  colher();
+} else {
+  console.info("Aguardando maturidade...");
+}
+```
 
 ---
 
@@ -271,10 +317,10 @@ O projeto possui duas camadas de progressao:
 │       ├── editor.js              # Ace Editor wrapper
 │       ├── logger.js              # Log de execucao
 │       └── progressionUI.js       # Arvores de missoes e desenvolvimento
+├── CHANGELOG.md
 └── docs/
     ├── README.md                  # Documentacao tecnica / API detalhada
-    ├── auditoria.md               # Auditoria de paridade vs. jogo original
-    └── RELATORIO_V1.md
+    └── auditoria.md               # Auditoria de paridade vs. jogo original
 ```
 
 ---
@@ -304,15 +350,18 @@ window.setCropGrowthSettings({ globalTimeScale: 2, perCropDurationSeconds: { cap
 ## Limitacoes Conhecidas
 
 - O runtime usa JS-Interpreter (base ES5). `let/const` sao convertidos para `var` automaticamente.
-- Parte dos efeitos de upgrades (velocidade de crescimento, yield, velocidade de drone) esta estruturada mas ainda nao conectada ao runtime — consulte [docs/auditoria.md](docs/auditoria.md) para o plano de implementacao.
 - Template literals (backticks) nao sao suportados na sandbox.
+- `Math.*` (floor, ceil, sqrt, etc.) ainda nao esta injetado na sandbox — use logica manual por enquanto.
+- Multiplos drones nao renderizados mesmo quando upgrades estao comprados.
+- Efeitos de solo sobre crescimento (biomas) sao estruturais mas ainda nao alteram os timers.
 
 ---
 
 ## Documentacao Complementar
 
 - [docs/README.md](docs/README.md) — Documentacao tecnica e API detalhada
-- [docs/auditoria.md](docs/auditoria.md) — Auditoria de paridade vs. The Farmer Was Replaced
+- [docs/auditoria.md](docs/auditoria.md) — Auditoria de paridade vs. The Farmer Was Replaced (~82%)
+- [CHANGELOG.md](CHANGELOG.md) — Historico de versoes e mudancas
 
 ---
 
