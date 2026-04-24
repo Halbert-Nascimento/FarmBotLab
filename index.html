@@ -76,12 +76,16 @@
                 <li><code>mover("direita")</code> — move o bot: <code>"direita"</code>, <code>"esquerda"</code>, <code>"cima"</code>, <code>"baixo"</code></li>
                 <li><code>plantar("tipo")</code> — planta na célula atual: <code>capim</code>, <code>trigo</code>, <code>milho</code>, <code>arvore</code>, <code>girasol</code>, <code>morango</code></li>
                 <li><code>colher()</code> — colhe o que está na célula atual</li>
+                <li><code>prepararSolo("tipo")</code> — altera o solo da célula: <code>"barro"</code>, <code>"argila"</code>, <code>"lama"</code>, <code>"arenoso"</code></li>
+                <li><code>prepararSuperficie("tipo")</code> — altera a superfície: <code>"puro"</code>, <code>"arado"</code></li>
               </ul>
+              <p class="hint">Aliases EN: prepareSoil("loam"/"clay"/"mud"/"sandy"), prepareSurface("pure"/"tilled")</p>
 
               <h3>Sensores (Retornam Valores)</h3>
               <ul class="api-list">
                 <li><code>obterCultura()</code> — retorna o tipo de planta na célula atual (<code>"capim"</code>, <code>"trigo"</code>, …) ou <code>null</code></li>
                 <li><code>obterSolo()</code> — retorna o tipo de solo na célula atual (<code>"loam"</code>, <code>"clay"</code>, …)</li>
+                <li><code>obterSuperficie()</code> — retorna o tipo de superfície da célula atual (<code>"pure"</code>, <code>"tilled"</code>) ou <code>null</code></li>
                 <li><code>posicaoX()</code> — retorna a coordenada X do drone</li>
                 <li><code>posicaoY()</code> — retorna a coordenada Y do drone</li>
                 <li><code>verificarMaturidade()</code> — retorna <code>true</code> se a planta atual está pronta para colher</li>
@@ -90,7 +94,16 @@
                 <li><code>contarItem("tipo")</code> — quantidade do item no inventário</li>
                 <li><code>turnoAtual()</code> — número do turno atual</li>
               </ul>
-              <p class="hint">Aliases EN: getCrop(), getSoilType(), getPosX(), getPosY(), isRipe(), getWorldWidth(), getWorldHeight(), getItemCount(), getCurrentTurn()</p>
+              <p class="hint">Aliases EN: getCrop(), getSoilType(), getSurface(), getPosX(), getPosY(), isRipe(), getWorldWidth(), getWorldHeight(), getItemCount(), getCurrentTurn()</p>
+
+              <h3>Debug (console)</h3>
+              <ul class="api-list">
+                <li><code>console.log(...args)</code> — mensagem padrão no log <span style="color:#60a5fa">[LOG]</span></li>
+                <li><code>console.info(...args)</code> — informação <span style="color:#60a5fa">[LOG]</span></li>
+                <li><code>console.warn(...args)</code> — aviso <span style="color:#f59e0b">[AVISO]</span></li>
+                <li><code>console.error(...args)</code> — erro <span style="color:#f87171">[ERRO]</span></li>
+              </ul>
+              <p class="hint">Aceita múltiplos argumentos: <code>console.log("x:", posicaoX())</code>. Objetos e arrays são exibidos como JSON.</p>
             </div>
           </div>
 

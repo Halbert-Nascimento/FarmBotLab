@@ -123,7 +123,7 @@ function normalizeModernDeclarations(sourceCode) {
   return out;
 }
 
-export function createProgramRunner({ getCode, onAction, onQuery, onLog, onDebugError }) {
+export function createProgramRunner({ getCode, onAction, onQuery, onLog, onConsoleLog, onDebugError }) {
   const actionQueue = [];
   let isExecuting = false;
   let stopRequested = false;
@@ -170,14 +170,19 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onDebug
     // ── API de comando em pt-BR ─────────────────────────────────────────────
     native("plantar", "plant");
     native("colher", "harvest");
+    native("prepararSolo", "setSoilType");
+    native("prepararSuperficie", "setSurface");
 
     // ── API de comando — aliases EN ─────────────────────────────────────────
     native("plant", "plant");
     native("harvest", "harvest");
+    native("prepareSoil", "setSoilType");
+    native("prepareSurface", "setSurface");
 
     // ── Sensores pt-BR ──────────────────────────────────────────────────────
     nativeWithReturn("obterCultura", "getCrop");
     nativeWithReturn("obterSolo", "getSoilType");
+    nativeWithReturn("obterSuperficie", "getSurface");
     nativeWithReturn("posicaoX", "getPosX");
     nativeWithReturn("posicaoY", "getPosY");
     nativeWithReturn("verificarMaturidade", "isRipe");
@@ -189,6 +194,7 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onDebug
     // ── Sensores EN ─────────────────────────────────────────────────────────
     nativeWithReturn("getCrop", "getCrop");
     nativeWithReturn("getSoilType", "getSoilType");
+    nativeWithReturn("getSurface", "getSurface");
     nativeWithReturn("getPosX", "getPosX");
     nativeWithReturn("getPosY", "getPosY");
     nativeWithReturn("isRipe", "isRipe");
@@ -196,6 +202,48 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onDebug
     nativeWithReturn("getWorldHeight", "getWorldHeight");
     nativeWithReturn("getItemCount", "getItemCount");
     nativeWithReturn("getCurrentTurn", "getCurrentTurn");
+
+    // ── console sandbox — redireciona para o Log de Execução da UI ──────────
+    // Isolado do window.console: é um pseudo-objeto novo criado dentro da sandbox.
+    // Os métodos aceitam múltiplos argumentos; objetos/arrays são exibidos via JSON.
+    var consoleObj = interpreter.nativeToPseudo({});
+
+    var CONSOLE_LEVELS = ["log", "info", "warn", "error"];
+    for (var ci = 0; ci < CONSOLE_LEVELS.length; ci++) {
+      (function (level) {
+        var prefix =
+          level === "warn"  ? "[AVISO] " :
+          level === "error" ? "[ERRO] "  :
+          level === "info" ? "[INFO] "  :
+          "[LOG] ";
+
+        var fn = interpreter.createNativeFunction(function () {
+          var parts = [];
+          for (var i = 0; i < arguments.length; i++) {
+            var native = interpreter.pseudoToNative(arguments[i]);
+            if (native !== null && typeof native === "object") {
+              try {
+                parts.push(JSON.stringify(native, null, 2));
+              } catch (_) {
+                parts.push(String(native));
+              }
+            } else {
+              parts.push(String(native == null ? "" : native));
+            }
+          }
+          var msg = prefix + parts.join(" ");
+          if (typeof onConsoleLog === "function") {
+            onConsoleLog(msg, level);
+          } else {
+            onLog(msg);
+          }
+        });
+
+        interpreter.setProperty(consoleObj, level, fn);
+      })(CONSOLE_LEVELS[ci]);
+    }
+
+    interpreter.setProperty(globalObject, "console", consoleObj);
   }
 
   async function run() {

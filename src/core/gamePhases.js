@@ -13,7 +13,7 @@ export const MISSION_TREE_NODES_V1 = [
     title: "Plantio Inicial",
     branch: "agricola",
     requires: ["n01_movimento"],
-    unlocks: ["api.plant", "crop.capim"],
+    unlocks: ["api.plant", "crop.capim", "api.soil"],
     missionIds: ["m03", "m04"],
     tree: { col: 2, row: 1 },
   },

@@ -41,7 +41,7 @@ flowchart TD
 | No | Nome | Ramo | Requisito de Abertura | Recompensa/Unlock |
 |---|---|---|---|---|
 | N01 | Movimento Inicial | fundamentos | Inicio do jogo | api.move |
-| N02 | Plantio Inicial | fundamentos | N01 completo | api.plant, crop.capim |
+| N02 | Plantio Inicial | fundamentos | N01 completo | api.plant, crop.capim, api.soil |
 | N03 | Colheita Inicial | fundamentos | N02 completo | api.harvest |
 | N04 | Decisao com If | logica | N03 completo | lang.if, comparacao basica |
 | N05 | Repeticao com While | logica | N04 completo | lang.while |
@@ -67,7 +67,9 @@ flowchart TD
 | Missao | Objetivo | Validacao |
 |---|---|---|
 | M03 Primeiro Plantio | Plante 3 culturas no total | plants >= 3 |
-| M04 Capim em Escala | Plante 2 unidades de capim | plantsByCrop.capim >= 2 |
+| M04 Capim em Escala | Plante 2 unidades de capim e prepare o solo | plantsByCrop.capim >= 2 |
+
+> **Desbloqueio:** ao concluir N02, a feature `api.soil` e liberada — `prepararSolo()` e `prepararSuperficie()` ficam disponiveis na sandbox.
 
 ### N03 Colheita Inicial
 
@@ -189,44 +191,64 @@ window.gamePhases.resetProgress();
 - lista de missoes ativas
 - progresso visual por no
 
-## 8. Limitacoes Atuais e Upgrades (Fase 2)
+## 8. Estado Atual e Limitacoes Remanescentes
 
-### 8.1 Limitacoes Confirmadas
+### 8.1 Funcionalidades Ativas (v1.1.0-beta)
+
+As itens abaixo estavam listados como limitacoes em versoes anteriores e estao agora plenamente implementados:
+
+1. **Movimentacao parametrizada:** `mover("direita")` substituiu as funcoes individuais definitivamente. Aliases EN (`move("right")`) tambem funcionam.
+
+2. **Console de debug sandboxado:** `console.log()`, `console.warn()`, `console.error()`, `console.info()` disponiveis no script do jogador. Saida exclusivamente no Log de Execucao da UI — sem vinculo com `window.console`.
+
+3. **Sensores sincronos (Canal 2):** `obterCultura()`, `obterSolo()`, `obterSuperficie()`, `posicaoX()`, `posicaoY()`, `verificarMaturidade()`, `tamanhoCampoX()`, `tamanhoCampoY()`, `contarItem()`, `turnoAtual()` — todos retornam valores reais da sandbox.
+
+4. **Validacoes de plantio:** Feature lock (`plantar("trigo")` bloqueado se crop.trigo nao desbloqueado), compatibilidade de solo por cultura, validacao de maturidade na colheita.
+
+5. **Efeitos reais de upgrades:** Velocidade de drone (tier × 20%), velocidade de crescimento de cultura (tier × 15%), yield por colheita (N itens por tier).
+
+6. **Persistencia completa:** Mundo + progressao + UI salvos automaticamente no localStorage ao fechar/recarregar.
+
+7. **Bloqueio de linguagem pela arvore:** `getUnlockedFeatures()` ja e consultado pelo gameController para as restricoes de plantio. Restricoes de constructs de linguagem (if/while/for) aguardam integracao futura.
+
+### 8.2 Limitacoes Remanescentes
 
 1. Runtime com JS-Interpreter 6.0.1:
 - Nao suporta todo JavaScript moderno nativamente.
-- Foi aplicado fallback para declarar variaveis modernas como var no runtime.
+- `let/const` convertidos para `var` automaticamente.
+- Template literals (backticks) nao suportados.
 
-2. Bloqueios de linguagem ainda nao ativos:
-- A arvore ja libera features, mas o bloqueio tecnico (if/while/for/function/array) ainda precisa ser conectado ao executor.
+2. **Math.\* nao injetado na sandbox** (P0 do roadmap):
+- `Math.floor`, `Math.sqrt`, `Math.random`, etc. nao estao disponiveis no script do jogador.
+- Workaround: logica manual (ex: divisao inteira com `Math.floor` nao disponivel).
 
-3. Progresso atual e por metricas globais:
+3. **Multiplos drones nao renderizados** (P1 do roadmap):
+- Upgrades `game.drone.extra` existem na arvore mas nenhum segundo drone e exibido no campo.
+
+4. Progresso atual e por metricas globais:
 - Missoes validam eventos acumulados.
 - Ainda nao existem missoes com validacao por mapa/posicao/tempo por script.
 
-4. UI de arvore sem pan/zoom por gesto:
+5. UI de arvore sem pan/zoom por gesto:
 - Atualmente usa scroll horizontal/vertical.
 - Em telas pequenas pode exigir mais navegacao manual.
 
-### 8.2 Upgrades Priorizados
+### 8.3 Upgrades Priorizados
 
-1. Upgrade de bloqueio por desbloqueio:
-- Integrar unlockedFeatures no executor de script.
-- Exibir erro didatico quando o jogador usar algo ainda bloqueado.
+1. **P0 — Math.\* na sandbox:**
+- Injetar `Math.floor`, `Math.ceil`, `Math.round`, `Math.abs`, `Math.sqrt`, `Math.min`, `Math.max`, `Math.pow`, `Math.PI` em `initApi()`.
 
-2. Upgrade de tutorial guiado por missao:
+2. **P1 — Segundo drone visual:**
+- Conectar upgrade `game.drone.extra.t1` a instancia adicional de avatar no Three.js.
+
+3. Upgrade de tutorial guiado por missao:
 - Expandir conteudo didatico com exemplos contextuais por objetivo.
 - Adicionar dicas dinamicas com base no erro de sintaxe/runtime.
 
-3. Upgrade de validacao de missao:
+4. Upgrade de validacao de missao:
 - Adicionar tipos de validacao por sequencia de acoes e por eficiencia.
-- Exemplo: concluir com maximo de passos, ou em X execucoes.
 
-4. Upgrade visual da arvore:
+5. Upgrade visual da arvore:
 - Pan/zoom.
 - Destaque animado de caminho desbloqueado.
-- Icônes por categoria e estado.
-
-5. Upgrade de editor didatico:
-- Painel de "como programar" por etapa.
-- Sugestoes de comandos permitidos no nivel atual.
+- Icones por categoria e estado.

@@ -1,16 +1,19 @@
 # CROP_SYSTEM_GUIDE
 
-Guia objetivo com todos os comandos de teste do sistema atual.
+Guia objetivo com todos os comandos de teste do sistema — versao 1.1.0-beta.
 
 ## 1. Comandos do Editor (script do bot)
 
 Estes comandos funcionam dentro do editor de codigo do jogo:
 
 ```javascript
-moverDireita();
-moverEsquerda();
-moverCima();
-moverBaixo();
+// Movimentacao parametrizada (padrao atual)
+mover("direita");
+mover("esquerda");
+mover("cima");
+mover("baixo");
+
+// Acoes
 plantar("capim");
 plantar("trigo");
 plantar("milho");
@@ -20,56 +23,181 @@ plantar("morango");
 colher();
 ```
 
-Compatibilidade: os comandos antigos em ingles (`moveRight`, `plant`, etc.) continuam funcionando.
+> Alias EN: `move("right")`, `move("left")`, `move("up")`, `move("down")`, `plant("tipo")`, `harvest()`.
 
 ### Exemplo rapido (editor)
 
 ```javascript
-moverDireita();
+mover("direita");
 plantar("capim");
-moverBaixo();
+mover("baixo");
 plantar("trigo");
-moverBaixo();
+mover("baixo");
 plantar("arvore");
-moverDireita();
+mover("direita");
 colher();
 ```
 
-## 2. Comandos de Terras (console do navegador)
+---
 
-Hoje, tipos de terra e superficie sao ajustados via API de visualizacao (`view`), no console do navegador.
+## 2. Sensores (Retornam Valores)
 
-### 2.1 Tipos de terra disponiveis
+Sensores sao sincronos — retornam o valor imediatamente e podem ser usados em variaveis e condicionais.
 
-- `loam`
-- `clay`
-- `sandy`
-- `peat`
-- `silt`
+| Sensor PT-BR | Sensor EN | Retorno | Descricao |
+|---|---|---|---|
+| `obterCultura()` | `getCrop()` | `string \| null` | Tipo de planta na celula atual ou `null` se vazia |
+| `obterSolo()` | `getSoilType()` | `string` | Tipo de solo: `"loam"`, `"clay"`, `"sandy-loam"`, etc. |
+| `obterSuperficie()` | `getSurface()` | `string \| null` | Tipo de superfície: `"pure"`, `"tilled"` ou `null` se não definida |
+| `posicaoX()` | `getPosX()` | `number` | Coordenada X do drone (0 = esquerda) |
+| `posicaoY()` | `getPosY()` | `number` | Coordenada Y do drone (0 = topo) |
+| `verificarMaturidade()` | `isRipe()` | `boolean` | `true` se a cultura esta pronta para colher |
+| `tamanhoCampoX()` | `getWorldWidth()` | `number` | Largura do campo (colunas) |
+| `tamanhoCampoY()` | `getWorldHeight()` | `number` | Altura do campo (linhas) |
+| `contarItem("tipo")` | `getItemCount("tipo")` | `number` | Quantidade de um item no inventario |
+| `turnoAtual()` | `getCurrentTurn()` | `number` | Numero do turno atual |
 
-### 2.2 Superficies disponiveis
-
-- `pure`
-- `tilled`
-
-### 2.3 Comandos de teste de terra
+### Exemplos reais de uso de sensores
 
 ```javascript
-// Mudar tipo de terra em uma celula (x, y)
-view.setSoilType(0, 0, "clay");
-view.setSoilType(1, 0, "sandy");
-view.setSoilType(2, 0, "peat");
-view.setSoilType(3, 0, "silt");
-view.setSoilType(4, 0, "loam");
+// Ler e logar a cultura da celula atual
+console.log("Cultura aqui:", obterCultura());
 
-// Mudar superficie em uma celula (x, y)
-view.setSoilSurface(0, 1, "pure");
-view.setSoilSurface(1, 1, "tilled");
+// Ler posicao
+console.log("Posicao:", posicaoX(), posicaoY());
+
+// Condicional com sensor
+var cultura = obterCultura();
+if (cultura !== null && verificarMaturidade()) {
+  colher();
+} else if (cultura === null) {
+  plantar("capim");
+}
+
+// Tamanho do campo
+console.log("Campo:", tamanhoCampoX(), "x", tamanhoCampoY());
+
+// Inventario
+console.log("Capim coletado:", contarItem("capim"));
+
+// Solo atual
+console.log("Solo:", obterSolo());
+
+// Superfície atual
+console.log("Superficie:", obterSuperficie());
 ```
 
-## 3. Comandos de Plantas (console do navegador)
+---
 
-Tambem e possivel testar plantio direto via API (`view`):
+## 3. Debug In-Game (console)
+
+O objeto `console` esta disponivel nos scripts do editor. Todas as mensagens aparecem no **Log de Execucao** da UI — nada vai para o F12 do navegador.
+
+| Metodo | Prefixo | Cor |
+|--------|---------|-----|
+| `console.log(...)` | `[LOG]` | padrao |
+| `console.info(...)` | `[LOG]` | azul |
+| `console.warn(...)` | `[AVISO]` | amarelo |
+| `console.error(...)` | `[ERRO]` | vermelho |
+
+Aceita **multiplos argumentos** e converte objetos/arrays automaticamente.
+
+### Exemplos de debug
+
+```javascript
+// Log basico
+var x = posicaoX();
+var y = posicaoY();
+console.log("Posicao atual:", x, y);
+
+// Aviso condicional
+if (x > 3) {
+  console.warn("Drone longe da origem!");
+}
+
+// Erro ao detectar problema
+var solo = obterSolo();
+if (solo === "clay") {
+  console.error("Solo incompativel para esta cultura!");
+}
+
+// Logar cultura e maturidade
+var c = obterCultura();
+console.log("Cultura:", c, "| Madura:", verificarMaturidade());
+
+// Ciclo com log de progresso
+var largura = tamanhoCampoX();
+for (var i = 0; i < largura; i = i + 1) {
+  plantar("capim");
+  console.info("Plantei na coluna", i);
+  if (i < largura - 1) { mover("direita"); }
+}
+```
+
+---
+
+## 4. API de Solo — Referencia Cruzada PT/EN
+
+A preparacao de solo agora e feita **diretamente no editor**, seguindo o mesmo padrao de `mover()`.
+
+### 4.1 Funcoes disponiveis na sandbox
+
+| Funcao PT-BR | Funcao EN | Descricao |
+|---|---|---|
+| `prepararSolo("tipo")` | `prepareSoil("type")` | Altera o tipo de solo da celula atual |
+| `prepararSuperficie("tipo")` | `prepareSurface("type")` | Altera a superficie da celula atual |
+
+### 4.2 Tabela De/Para — Tipos de Solo
+
+| PT-BR | EN | Nome interno | Culturas compativeis |
+|-------|----|----|---|
+| `"barro"` | `"loam"` | `loam` | todas |
+| `"argila"` | `"clay"` | `clay` | trigo, milho, girasol |
+| `"lama"` | `"mud"` | `mud` | — (uso futuro) |
+| `"arenoso"` | `"sandy"` / `"sandy-loam"` | `sandy-loam` | milho, girasol, morango |
+| `"turfa"` | `"peat"` | `peat` | — (uso futuro) |
+| `"silte"` | `"silt"` | `silt` | — (uso futuro) |
+
+### 4.3 Tabela De/Para — Superficie
+
+| PT-BR | EN | Nome interno |
+|-------|----|---|
+| `"puro"` | `"pure"` | `pure` |
+| `"arado"` | `"tilled"` | `tilled` |
+
+> As funcoes sao **case-insensitive**: `"Argila"`, `"ARGILA"` e `"argila"` sao equivalentes.
+
+### 4.4 Exemplos no editor
+
+```javascript
+// Preparar solo antes de plantar
+prepararSolo("argila");
+plantar("trigo");
+
+// Alias EN equivalente
+prepareSoil("clay");
+plant("trigo");
+
+// Verificar solo e decidir cultura
+var solo = obterSolo();
+console.log("Solo atual:", solo);
+if (solo === "loam") {
+  plantar("arvore");
+} else if (solo === "clay") {
+  plantar("trigo");
+} else {
+  prepararSolo("barro");
+  plantar("capim");
+}
+
+// Preparar superficie
+prepararSuperficie("arado");
+plantar("trigo");
+```
+
+---
+
+## 5. Comandos de Plantas (console do navegador)
 
 ```javascript
 // Plantar visualmente em uma celula (x, y)
@@ -84,9 +212,9 @@ view.setCrop(5, 2, "morango");
 view.setCrop(0, 2, null);
 ```
 
-## 4. Ajuste de Crescimento (tempo real)
+---
 
-O crescimento e em tempo real e pode ser ajustado em runtime:
+## 6. Ajuste de Crescimento (tempo real)
 
 ```javascript
 // Ajuste global (maior que 1 acelera, menor que 1 desacelera)
@@ -103,45 +231,69 @@ window.setCropGrowthSettings({
     morango: 18
   }
 });
-
-// Combinado
-window.setCropGrowthSettings({
-  globalTimeScale: 1.2,
-  perCropDurationSeconds: {
-    capim: 10,
-    trigo: 18,
-    arvore: 28,
-    girasol: 20,
-    morango: 14
-  }
-});
 ```
 
-## 5. Pacotes de Teste Prontos
+Tempos de maturidade base (sem upgrades): capim 15s, trigo 20s, girasol 18s, morango 22s, milho 25s, arvore 40s.
 
-### 5.1 Teste de movimentos + plantio (editor)
+---
+
+## 7. Pacotes de Teste Prontos
+
+### 7.1 Teste de movimentos + plantio + sensores (editor)
 
 ```javascript
-moverDireita();
+mover("direita");
 plantar("capim");
-moverDireita();
+console.log("Plantei:", obterCultura());
+mover("direita");
 plantar("trigo");
-moverDireita();
+mover("direita");
 plantar("milho");
-moverDireita();
+mover("direita");
 plantar("arvore");
-moverDireita();
+mover("direita");
 plantar("girasol");
-moverDireita();
+mover("direita");
 plantar("morango");
 ```
 
-### 5.2 Teste de terrenos variados (console)
+### 7.2 Varredura com sensores e debug
+
+```javascript
+var largura = tamanhoCampoX();
+var altura = tamanhoCampoY();
+console.log("Campo:", largura, "x", altura);
+
+for (var y = 0; y < altura; y = y + 1) {
+  for (var x = 0; x < largura; x = x + 1) {
+    var c = obterCultura();
+    if (c === null) {
+      plantar("capim");
+      console.info("Plantei capim em", x, y);
+    } else if (verificarMaturidade()) {
+      colher();
+      console.log("Colhi", c, "em", x, y);
+    } else {
+      console.warn("Imatura:", c, "em", x, y);
+    }
+    if (x < largura - 1) { mover("direita"); }
+  }
+  if (y < altura - 1) {
+    mover("baixo");
+    for (var v = 0; v < largura - 1; v = v + 1) {
+      mover("esquerda");
+    }
+  }
+}
+console.log("Capim coletado:", contarItem("capim"));
+```
+
+### 7.3 Teste de terrenos variados (console do navegador)
 
 ```javascript
 view.setSoilType(0, 0, "loam");
 view.setSoilType(1, 0, "clay");
-view.setSoilType(2, 0, "sandy");
+view.setSoilType(2, 0, "sandy-loam");
 view.setSoilType(3, 0, "peat");
 view.setSoilType(4, 0, "silt");
 
@@ -153,20 +305,14 @@ view.setCrop(4, 0, "girasol");
 view.setCrop(5, 0, "morango");
 ```
 
-### 5.3 Teste de superficie (console)
+---
 
-```javascript
-view.setSoilSurface(0, 1, "pure");
-view.setSoilSurface(1, 1, "tilled");
-view.setCrop(0, 1, "capim");
-view.setCrop(1, 1, "trigo");
-```
-
-## 6. Regra de manutencao deste arquivo
+## 8. Regra de manutencao deste arquivo
 
 Sempre que um novo objeto/cultura for criado, adicionar neste arquivo:
 
 1. Comando de plantio no editor (se existir)
-2. Comando de plantio via console (`view.setCrop`)
-3. Exemplo de teste rapido completo
-4. Ajuste de crescimento (se houver parametros novos)
+2. Sensor de leitura relacionado (se houver)
+3. Exemplo com console.log() mostrando o comportamento esperado
+4. Comando de plantio via console (`view.setCrop`)
+5. Ajuste de crescimento (se houver parametros novos)

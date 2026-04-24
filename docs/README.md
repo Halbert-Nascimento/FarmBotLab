@@ -1,5 +1,7 @@
 # FarmBot Lab — Documentacao Tecnica
 
+**Versao:** 1.1.0-beta | **Atualizado:** 2026-04-11
+
 Referencia completa da API do jogador, arquitetura interna e sistemas do projeto.
 
 ---
@@ -9,12 +11,13 @@ Referencia completa da API do jogador, arquitetura interna e sistemas do projeto
 1. [Arquitetura Geral](#arquitetura-geral)
 2. [API do Jogador — Comandos de Acao](#api-do-jogador--comandos-de-acao)
 3. [API do Jogador — Sensores](#api-do-jogador--sensores)
-4. [Sistema de Culturas e Maturidade](#sistema-de-culturas-e-maturidade)
-5. [Persistencia (Save/Load)](#persistencia-saveload)
-6. [Sistema de Temas, Paletas e Acentos](#sistema-de-temas-paletas-e-acentos)
-7. [Progressao e Upgrades](#progressao-e-upgrades)
-8. [API de Debug (Console)](#api-de-debug-console)
-9. [Referencia de Arquivos](#referencia-de-arquivos)
+4. [Console no Script do Jogador](#console-no-script-do-jogador-sandbox)
+5. [Sistema de Culturas e Maturidade](#sistema-de-culturas-e-maturidade)
+6. [Persistencia (Save/Load)](#persistencia-saveload)
+7. [Sistema de Temas, Paletas e Acentos](#sistema-de-temas-paletas-e-acentos)
+8. [Progressao e Upgrades](#progressao-e-upgrades)
+9. [API de Debug (Console do Navegador)](#api-de-debug-console-do-navegador)
+10. [Referencia de Arquivos](#referencia-de-arquivos)
 
 ---
 
@@ -339,9 +342,45 @@ Cada upgrade consome itens do inventario e pode exigir upgrades anteriores como 
 
 ---
 
-## API de Debug (Console)
+## Console no Script do Jogador (Sandbox)
 
-Disponivel via `window.gamePhases` no console do navegador:
+O objeto `console` esta disponivel dentro dos scripts ES5. Todas as mensagens sao redirecionadas ao **Log de Execucao** da UI — nada vai para o F12 do navegador.
+
+| Metodo | Prefixo | Cor no Log |
+|--------|---------|-----------|
+| `console.log(...)` | `[LOG]` | Padrao |
+| `console.info(...)` | `[LOG]` | Azul |
+| `console.warn(...)` | `[AVISO]` | Amarelo |
+| `console.error(...)` | `[ERRO]` | Vermelho |
+
+- Aceita multiplos argumentos: `console.log("x:", posicaoX(), "y:", posicaoY())`
+- Objetos e arrays sao exibidos como JSON formatado (`JSON.stringify`, 2 espacos)
+- Implementado via `interpreter.nativeToPseudo({})` em `programRunner.js` — sem vinculo com `window.console`
+
+```javascript
+// Exemplo de uso no script do jogador:
+var largura = tamanhoCampoX();
+console.log("Campo:", largura, "x", tamanhoCampoY());
+
+for (var x = 0; x < largura; x = x + 1) {
+  var c = obterCultura();
+  if (c === null) {
+    plantar("capim");
+  } else if (verificarMaturidade()) {
+    console.info("Colhendo", c, "em x=" + x);
+    colher();
+  } else {
+    console.warn("Imatura:", c);
+  }
+  if (x < largura - 1) { mover("direita"); }
+}
+```
+
+---
+
+## API de Debug (Console do Navegador)
+
+Disponivel via `window.gamePhases` no console do navegador (F12):
 
 | Metodo | Descricao |
 |---|---|
@@ -383,7 +422,7 @@ window.setCropGrowthSettings({
 | `src/core/gamePhases.js` | Progressao: missoes, upgrades, inventario, features, save/restore |
 | `src/render/threeFarmView.js` | Three.js: tiles, avatares (drone/trator/robo), animacao de culturas |
 | `src/ui/editor.js` | Wrapper do Ace Editor com suporte a temas |
-| `src/ui/logger.js` | Log de execucao |
+| `src/ui/logger.js` | Log de execucao — `append()` texto simples, `appendStyled(text, level)` colorido |
 | `src/ui/progressionUI.js` | Renderizacao das arvores de missoes e desenvolvimento |
 | `src/style.css` | Variaveis CSS de tema/paleta/acento, layout principal |
 | `src/game.css` | Estilos do painel de jogo e inventario HUD |
