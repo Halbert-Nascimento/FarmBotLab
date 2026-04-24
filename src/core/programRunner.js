@@ -244,6 +244,57 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onConso
     }
 
     interpreter.setProperty(globalObject, "console", consoleObj);
+
+    // --- Math API ---
+    var mathObj = interpreter.nativeToPseudo({});
+
+    var MATH_SINGLE = ["floor", "ceil", "round", "abs", "sqrt", "log"];
+    for (var mi = 0; mi < MATH_SINGLE.length; mi++) {
+      (function (name) {
+        interpreter.setProperty(
+          mathObj, name,
+          interpreter.createNativeFunction(function (val) {
+            return interpreter.nativeToPseudo(Math[name](interpreter.pseudoToNative(val)));
+          })
+        );
+      })(MATH_SINGLE[mi]);
+    }
+
+    interpreter.setProperty(
+      mathObj, "max",
+      interpreter.createNativeFunction(function () {
+        var args = [];
+        for (var i = 0; i < arguments.length; i++) args.push(interpreter.pseudoToNative(arguments[i]));
+        return interpreter.nativeToPseudo(Math.max.apply(Math, args));
+      })
+    );
+
+    interpreter.setProperty(
+      mathObj, "min",
+      interpreter.createNativeFunction(function () {
+        var args = [];
+        for (var i = 0; i < arguments.length; i++) args.push(interpreter.pseudoToNative(arguments[i]));
+        return interpreter.nativeToPseudo(Math.min.apply(Math, args));
+      })
+    );
+
+    interpreter.setProperty(
+      mathObj, "pow",
+      interpreter.createNativeFunction(function (base, exp) {
+        return interpreter.nativeToPseudo(Math.pow(interpreter.pseudoToNative(base), interpreter.pseudoToNative(exp)));
+      })
+    );
+
+    interpreter.setProperty(
+      mathObj, "random",
+      interpreter.createNativeFunction(function () {
+        return interpreter.nativeToPseudo(Math.random());
+      })
+    );
+
+    interpreter.setProperty(mathObj, "PI", interpreter.nativeToPseudo(Math.PI));
+
+    interpreter.setProperty(globalObject, "Math", mathObj);
   }
 
   async function run() {
