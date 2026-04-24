@@ -182,6 +182,7 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onConso
     // ── Sensores pt-BR ──────────────────────────────────────────────────────
     nativeWithReturn("obterCultura", "getCrop");
     nativeWithReturn("obterSolo", "getSoilType");
+    nativeWithReturn("obterSuperficie", "getSurface");
     nativeWithReturn("posicaoX", "getPosX");
     nativeWithReturn("posicaoY", "getPosY");
     nativeWithReturn("verificarMaturidade", "isRipe");
@@ -193,6 +194,7 @@ export function createProgramRunner({ getCode, onAction, onQuery, onLog, onConso
     // ── Sensores EN ─────────────────────────────────────────────────────────
     nativeWithReturn("getCrop", "getCrop");
     nativeWithReturn("getSoilType", "getSoilType");
+    nativeWithReturn("getSurface", "getSurface");
     nativeWithReturn("getPosX", "getPosX");
     nativeWithReturn("getPosY", "getPosY");
     nativeWithReturn("isRipe", "isRipe");

@@ -184,6 +184,7 @@ Sensores usam o Canal 2 (sincrono): o retorno e imediato e pode ser usado em var
 |---|---|---|---|
 | `obterCultura()` | `getCrop()` | `string \| null` | Tipo de planta na celula atual (`"capim"`, `"trigo"`, etc.) ou `null` se vazia |
 | `obterSolo()` | `getSoilType()` | `string` | Tipo de solo na celula atual (`"loam"`, `"clay"`, `"sandy-loam"`, ...) |
+| `obterSuperficie()` | `getSurface()` | `string \| null` | Tipo de superfície da celula atual (`"pure"`, `"tilled"`) ou `null` se não definida |
 | `posicaoX()` | `getPosX()` | `number` | Coordenada X do drone (0 = esquerda) |
 | `posicaoY()` | `getPosY()` | `number` | Coordenada Y do drone (0 = topo) |
 | `verificarMaturidade()` | `isRipe()` | `boolean` | `true` se a planta esta pronta para colher (tempo de maturidade atingido) |

@@ -48,6 +48,7 @@ Sensores sao sincronos — retornam o valor imediatamente e podem ser usados em 
 |---|---|---|---|
 | `obterCultura()` | `getCrop()` | `string \| null` | Tipo de planta na celula atual ou `null` se vazia |
 | `obterSolo()` | `getSoilType()` | `string` | Tipo de solo: `"loam"`, `"clay"`, `"sandy-loam"`, etc. |
+| `obterSuperficie()` | `getSurface()` | `string \| null` | Tipo de superfície: `"pure"`, `"tilled"` ou `null` se não definida |
 | `posicaoX()` | `getPosX()` | `number` | Coordenada X do drone (0 = esquerda) |
 | `posicaoY()` | `getPosY()` | `number` | Coordenada Y do drone (0 = topo) |
 | `verificarMaturidade()` | `isRipe()` | `boolean` | `true` se a cultura esta pronta para colher |
@@ -81,6 +82,9 @@ console.log("Capim coletado:", contarItem("capim"));
 
 // Solo atual
 console.log("Solo:", obterSolo());
+
+// Superfície atual
+console.log("Superficie:", obterSuperficie());
 ```
 
 ---

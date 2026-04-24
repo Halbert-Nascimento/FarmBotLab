@@ -10,13 +10,21 @@ Versionamento segue [Semantic Versioning](https://semver.org/).
 
 ### Adicionado
 
-- **API de Solo bilíngue** — `prepararSolo()` / `prepareSoil()` e `prepararSuperficie()` / `prepareSurface()` disponíveis na sandbox
+- **API de Solo completa — ações de preparação e sensores de leitura bilíngues**
+
+- **Ações (Canal 1):**
+  - `prepararSolo()` / `prepareSoil()` e `prepararSuperficie()` / `prepareSurface()` disponíveis na sandbox
   - Aceita nomes em PT-BR e EN, case-insensitive
   - `prepararSolo("argila")` ≡ `prepareSoil("clay")`, `prepararSolo("barro")` ≡ `prepareSoil("loam")`, etc.
   - `prepararSuperficie("arado")` ≡ `prepareSurface("tilled")`
   - Mensagens de erro e log 100% em PT-BR
   - Feature `api.soil` desbloqueada no nó `n02_plantio` da árvore de missões
   - Implementado via Canal 1 (void/async) — segue exatamente o padrão de `mover()`
+
+- **Sensores (Canal 2):**
+  - `obterSuperficie()` / `getSurface()` — retorna tipo de superfície da célula atual (`"pure"`, `"tilled"` ou `null`)
+  - Registrados via `nativeWithReturn()` em `programRunner.js`, resolvido em `queryState` de `gameController.js`
+  - Lê `soil.extra.surface` do snapshot do `farmWorld`
 
 - **Mapeamentos internos** em `gameController.js`:
   - `SOIL_TYPE_MAP`: barro→loam, argila→clay, lama→mud, arenoso→sandy-loam, turfa→peat, silte→silt (+ aliases EN)

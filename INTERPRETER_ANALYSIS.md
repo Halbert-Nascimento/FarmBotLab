@@ -71,6 +71,7 @@ Implementados via `nativeWithReturn()` + `interpreter.nativeToPseudo()`:
 ```javascript
 obterCultura()         // → string | null  — cultura na celula atual
 obterSolo()            // → string         — tipo de solo na celula atual
+obterSuperficie()      // → string | null  — tipo de superfície da celula atual ("pure", "tilled" ou null)
 posicaoX()             // → number         — coordenada X do drone
 posicaoY()             // → number         — coordenada Y do drone
 verificarMaturidade()  // → boolean        — true se cultura pronta
@@ -78,7 +79,7 @@ tamanhoCampoX()        // → number         — largura do campo
 tamanhoCampoY()        // → number         — altura do campo
 contarItem("tipo")     // → number         — quantidade no inventario
 turnoAtual()           // → number         — turno atual
-// Aliases EN: getCrop(), getSoilType(), getPosX(), getPosY(), isRipe(),
+// Aliases EN: getCrop(), getSoilType(), getSurface(), getPosX(), getPosY(), isRipe(),
 //             getWorldWidth(), getWorldHeight(), getItemCount(), getCurrentTurn()
 ```
 
@@ -284,7 +285,7 @@ interpreter.setProperty(globalObject, "Math", mathObj);
 |---|---|---|
 | **Seguranca** | ✅ Excelente | js-interpreter sandbox confiavel, sem vinculo window.console |
 | **Movimentacao** | ✅ Completa | `mover("direcao")` parametrizado + aliases EN |
-| **Sensores (Canal 2)** | ✅ Completos | 9 sensores PT-BR + 9 aliases EN funcionais |
+| **Sensores (Canal 2)** | ✅ Completos | 10 sensores PT-BR + 10 aliases EN funcionais |
 | **Console debug** | ✅ Completo | 4 niveis, multiplos args, JSON formatado |
 | **Validacoes de jogo** | ✅ Completas | Maturidade, feature lock, compatibilidade de solo |
 | **Efeitos de upgrades** | ✅ Parcial | Drone/crescimento/yield aplicados; Math.\* pendente |

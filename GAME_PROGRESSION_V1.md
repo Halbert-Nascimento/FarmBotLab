@@ -201,7 +201,7 @@ As itens abaixo estavam listados como limitacoes em versoes anteriores e estao a
 
 2. **Console de debug sandboxado:** `console.log()`, `console.warn()`, `console.error()`, `console.info()` disponiveis no script do jogador. Saida exclusivamente no Log de Execucao da UI — sem vinculo com `window.console`.
 
-3. **Sensores sincronos (Canal 2):** `obterCultura()`, `obterSolo()`, `posicaoX()`, `posicaoY()`, `verificarMaturidade()`, `tamanhoCampoX()`, `tamanhoCampoY()`, `contarItem()`, `turnoAtual()` — todos retornam valores reais da sandbox.
+3. **Sensores sincronos (Canal 2):** `obterCultura()`, `obterSolo()`, `obterSuperficie()`, `posicaoX()`, `posicaoY()`, `verificarMaturidade()`, `tamanhoCampoX()`, `tamanhoCampoY()`, `contarItem()`, `turnoAtual()` — todos retornam valores reais da sandbox.
 
 4. **Validacoes de plantio:** Feature lock (`plantar("trigo")` bloqueado se crop.trigo nao desbloqueado), compatibilidade de solo por cultura, validacao de maturidade na colheita.
 

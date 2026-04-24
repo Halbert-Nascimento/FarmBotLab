@@ -185,3 +185,35 @@ while (colAtual < larguraCampo) {
 }
 
 console.log("Teste 9 concluido. Capim plantado na linha 0.");
+
+
+// ►► TESTE 10: Automacao por Terreno
+// Demonstra obterSuperficie() e obterSolo() para tomar decisao de plantio:
+// se superficie "arado" → planta trigo; se solo "loam" e superficie nula → prepara e planta capim; senao loga aviso.
+
+console.log("=== Teste 10: Automacao por Terreno ===");
+
+var larguraTeste10 = tamanhoCampoX();
+for (var t10 = 0; t10 < larguraTeste10; t10 = t10 + 1) {
+  var sup10 = obterSuperficie();
+  var solo10 = obterSolo();
+  var x10 = posicaoX();
+
+  console.log("Celula x=" + x10 + " | Solo:", solo10, "| Superficie:", sup10);
+
+  if (sup10 === "tilled") {
+    plantar("trigo");
+    console.log("Plantou trigo (superficie arada) em x=" + x10);
+  } else if (solo10 === "loam" && sup10 === null) {
+    prepararSuperficie("arado");
+    plantar("capim");
+    console.log("Preparou superficie e plantou capim em x=" + x10);
+  } else {
+    console.warn("Terreno nao ideal em x=" + x10 + ": solo=" + solo10 + " sup=" + sup10);
+  }
+
+  if (t10 < larguraTeste10 - 1) { mover("direita"); }
+}
+
+console.log("Teste 10 concluido.");
+console.log("Trigo:", contarItem("trigo"), "| Capim:", contarItem("capim"));

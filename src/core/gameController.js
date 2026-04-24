@@ -477,6 +477,11 @@ export function createGameController({ world, gamePhases, view, onLog, onUIUpdat
       case "getCurrentTurn":
         return snapshot.turn;
 
+      case "getSurface": {
+        const soil = snapshot.soils.find(function (s) { return s.x === pos.x && s.y === pos.y; });
+        return (soil && soil.soil.extra && soil.soil.extra.surface) ? soil.soil.extra.surface : null;
+      }
+
       default:
         return null;
     }
